@@ -4,6 +4,7 @@
 folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
 
 segmentTheseIndices = 1;
+gridType='EEG';
 impedanceTag = '_Impedance_end';
 for i=1:length(segmentTheseIndices)
     subjectName = subjectNames{segmentTheseIndices(i)};

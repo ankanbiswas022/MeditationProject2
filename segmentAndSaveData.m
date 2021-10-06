@@ -30,10 +30,10 @@ end
 gridType = 'EEG';
 %protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'IAT'} {'EO2'} {'EC2'} {'M2'}];
 protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}]; % IAT not considered for now
-timeStartFromBaseLine = 0; deltaT = 1;
+timeStartFromBaseLine = 0; deltaT = 0.75;
 
-trialStartCode = 9;
-trialEndCode = 18;
+trialStartCode = 9; trialEndCode = 18;
+epochDur = 0.75; % in seconds
 
 for i=1:length(protocolNameList)
     protocolName = protocolNameList{i};
@@ -69,8 +69,8 @@ for i=1:length(protocolNameList)
             trialStartTimeML = MLDataThisTrial.BehavioralCodes.CodeTimes((MLDataThisTrial.BehavioralCodes.CodeNumbers==trialStartCode)); % in milliseconds
             trialEndTimeML = MLDataThisTrial.BehavioralCodes.CodeTimes((MLDataThisTrial.BehavioralCodes.CodeNumbers==trialEndCode)); % in milliseconds
             
-            numEpochsToUse = floor((trialEndTimeML-trialStartTimeML)/1000);
-            goodStimTimesThisTrial = (trialStartTimeML/1000)+(0:numEpochsToUse-1); % Relative to this trial (in seconds)
+            durToUseS = floor((trialEndTimeML-trialStartTimeML)/1000);
+            goodStimTimesThisTrial = (trialStartTimeML/1000)+(0:epochDur:durToUseS-epochDur); % Relative to this trial (in seconds)
             
             goodStimTimes = cat(2,goodStimTimes,trialStartTimeBP + goodStimTimesThisTrial); % in seconds
             goodStimTimesML = cat(2,goodStimTimesML,MLDataThisTrial.AbsoluteTrialStartTime/1000 + goodStimTimesThisTrial); % in seconds
@@ -99,7 +99,7 @@ for i=1:length(protocolNameList)
         end
         
         % Get and Align eye data
-        eyeDataThisTrial = getEyeDataThisTrial(MLDataThisTrial.AnalogData.Eye,goodStimTimesThisTrial); 
+        eyeDataThisTrial = getEyeDataThisTrial(MLDataThisTrial.AnalogData.Eye,goodStimTimesThisTrial,epochDur); 
         eyeData = cat(1,eyeData,eyeDataThisTrial);
     end
     
@@ -139,13 +139,13 @@ else
     disp(['max difference in relative timing: ' num2str(maxD) ' ms']);
 end
 end
-function eyeDataThisTrial = getEyeDataThisTrial(eyeDataML,goodStimTimesThisTrial)
+function eyeDataThisTrial = getEyeDataThisTrial(eyeDataML,goodStimTimesThisTrial,epochDur)
 % This assumes that eye data is sampled at 1000 Hz. Needs to be modified for
 % general case.
 
 maxEyePos = size(eyeDataML,1);
 for k=1:length(goodStimTimesThisTrial)
-    pos = round(goodStimTimesThisTrial(k)*1000) + (1:750);
+    pos = round(goodStimTimesThisTrial(k)*1000) + (1:round(epochDur*1000));
     if max(pos)<=maxEyePos
         eyeDataThisTrial(k,:,:) = eyeDataML(pos,:); %#ok<*AGROW> 
     else
