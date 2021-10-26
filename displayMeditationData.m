@@ -105,7 +105,7 @@ end
 
 function [psd,freqVals] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList)
 
-timeRange = [0.25 0.75];
+timeRange = [0.25 1.25];
 tapers = [1 1];
 freqRange = [0 100];
 

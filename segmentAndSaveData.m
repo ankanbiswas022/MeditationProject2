@@ -1,23 +1,20 @@
 % This is the main program used for data segmentation.
-% Data is segmented in 1 second segments. In conditions in which gamma
-% stimulus is presented (G1, G2 and M2), stimulus is presented for 750 ms,
-% and data is analyzed between 250-750 ms (500 ms duration). For remaining
-% protocols, we simply segment the data in consecutive 1-second bins.
+% In all protocols, time is divided into 2.5 second long "trials", each
+% marked by trial start and trial end digital markers. In three protocols -
+% G1, G2 and M2, a stimulus is presented after 1.25 seconds. In the
+% remaining trials, nothing happens.
 
 % There are 9 protocols as listed below.
-% 1. EO1 (eyes open 1): Duration: 5 minutes. We take segments separated by 1 seconds (300 segments).
-% 2. EC1 (eyes close 1): Duration: 5 minutes. We take segments separated by 1 seconds (300 segments).
-% 3. G1  (Gamma 1): Duration: 5 minutes. Each trial consists of 8 stimuli
-% of 750 ms with ITI of 1.5 seconds (7.5 seconds total). They are presented
-% continuously for 5 mins (40 trials; 320 stimuli). 1 second interval starting from
-% onset of each stimulus is saved (320 segments).
-% 4. M1  (Meditation 1): Duration: 15 minutes. We take segments separated by 1 seconds (1500 segments).
+% 1. EO1 (eyes open 1): Duration: 5 minutes.
+% 2. EC1 (eyes close 1): Duration: 5 minutes
+% 3. G1  (Gamma 1): Duration: 5 minutes. 
+% 4. M1  (Meditation 1): Duration: 15 minutes.
 % 5. G2 (Gamma 2): Same as G1
-% 6. IAT (Implicit association task): Duration: 15 minutes: For now, this is not analyzed
+% 6. IAT (Implicit association task): Duration: 12 minutes: For now, this is not analyzed
 % 7. EO2 (eyes open 2): Same as EO1
 % 8. EC2 (eyes close 2): Same as EC2
-% 9. M2 (Meditation 2): Same as Meditation 1 but with the Gamma protocol
-% running 3 times back-to-back. Total: 320*3 = 960 stimuli
+% 9. M2 (Meditation 2): Duration: 15 minutes - same as M1 but with gamma
+% protocol running 
 
 function segmentAndSaveData(subjectName,expDate,folderSourceString)
 
@@ -30,10 +27,9 @@ end
 gridType = 'EEG';
 %protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'IAT'} {'EO2'} {'EC2'} {'M2'}];
 protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}]; % IAT not considered for now
-timeStartFromBaseLine = 0; deltaT = 0.75;
+timeStartFromBaseLine = -1.25; deltaT = 2.5;
 
 trialStartCode = 9; trialEndCode = 18;
-epochDur = 0.75; % in seconds
 
 for i=1:length(protocolNameList)
     protocolName = protocolNameList{i};
@@ -67,16 +63,13 @@ for i=1:length(protocolNameList)
         if strcmp(protocolName(1),'E') || strcmp(protocolName,'M1') % for EO, EC and M1 protocols
 
             trialStartTimeML = MLDataThisTrial.BehavioralCodes.CodeTimes((MLDataThisTrial.BehavioralCodes.CodeNumbers==trialStartCode)); % in milliseconds
-            trialEndTimeML = MLDataThisTrial.BehavioralCodes.CodeTimes((MLDataThisTrial.BehavioralCodes.CodeNumbers==trialEndCode)); % in milliseconds
+            goodStimTimeThisTrial = (trialStartTimeML/1000) - timeStartFromBaseLine; % Relative to this trial (in seconds)
             
-            durToUseS = floor((trialEndTimeML-trialStartTimeML)/1000);
-            goodStimTimesThisTrial = (trialStartTimeML/1000)+(0:epochDur:durToUseS-epochDur); % Relative to this trial (in seconds)
-            
-            goodStimTimes = cat(2,goodStimTimes,trialStartTimeBP + goodStimTimesThisTrial); % in seconds
-            goodStimTimesML = cat(2,goodStimTimesML,MLDataThisTrial.AbsoluteTrialStartTime/1000 + goodStimTimesThisTrial); % in seconds
+            goodStimTimes = cat(2,goodStimTimes,trialStartTimeBP + goodStimTimeThisTrial); % in seconds
+            goodStimTimesML = cat(2,goodStimTimesML,MLDataThisTrial.AbsoluteTrialStartTime/1000 + goodStimTimeThisTrial); % in seconds
             
         elseif strcmp(protocolName(1),'G') || strcmp(protocolName,'M2') % for G1, G2 and M2 protocols
-            
+
             % ML
             codeTimesThisTrialML = MLDataThisTrial.BehavioralCodes.CodeTimes;
             codesNumbersThisTrialML = MLDataThisTrial.BehavioralCodes.CodeNumbers;
@@ -85,21 +78,21 @@ for i=1:length(protocolNameList)
             eventPosThisTrial = intersect(find(digitalTimeStamps>=trialStartTimeBP),find(digitalTimeStamps<=trialEndTimeBP));
             digitalTimeStampsThisTrial = digitalTimeStamps(eventPosThisTrial);
             digitalEventsThisTrial = digitalEvents(eventPosThisTrial);
-
+            
             % The events should match
             if ~isequal(digitalEventsThisTrial(:),codesNumbersThisTrialML(:))
-                error('Code numbers do not match');
+                disp('Code numbers do not match');
             end
             
             goodStimPosThisTrial = getGoodStimPosGammaProtocol(digitalEventsThisTrial);
-            goodStimTimesThisTrial = codeTimesThisTrialML(goodStimPosThisTrial)/1000; % Relative to this trial (in seconds)
+            goodStimTimeThisTrial = codeTimesThisTrialML(goodStimPosThisTrial)/1000; % Relative to this trial (in seconds)
             
             goodStimTimes = cat(2,goodStimTimes,digitalTimeStampsThisTrial(goodStimPosThisTrial)); % in seconds, directly from the BP digital stream
-            goodStimTimesML = cat(2,goodStimTimesML,MLDataThisTrial.AbsoluteTrialStartTime/1000 + goodStimTimesThisTrial'); 
+            goodStimTimesML = cat(2,goodStimTimesML,MLDataThisTrial.AbsoluteTrialStartTime/1000 + goodStimTimeThisTrial');
         end
         
         % Get and Align eye data
-        eyeDataThisTrial = getEyeDataThisTrial(MLDataThisTrial.AnalogData.Eye,goodStimTimesThisTrial,epochDur); 
+        eyeDataThisTrial = getEyeDataThisTrial(MLDataThisTrial.AnalogData.Eye,goodStimTimeThisTrial,timeStartFromBaseLine,deltaT);
         eyeData = cat(1,eyeData,eyeDataThisTrial);
     end
     
@@ -116,7 +109,7 @@ for i=1:length(protocolNameList)
 end
 end
 function goodStimPos = getGoodStimPosGammaProtocol(digitalEvents)
-goodCodeNums = 22:29; % Stim codes
+goodCodeNums = 21:28; % Stim codes
 
 goodStimPos = [];
 for i=1:length(digitalEvents)
@@ -139,19 +132,19 @@ else
     disp(['max difference in relative timing: ' num2str(maxD) ' ms']);
 end
 end
-function eyeDataThisTrial = getEyeDataThisTrial(eyeDataML,goodStimTimesThisTrial,epochDur)
+function eyeDataThisTrial = getEyeDataThisTrial(eyeDataML,goodStimTimesThisTrial,timeStartFromBaseLine,epochDur)
 % This assumes that eye data is sampled at 1000 Hz. Needs to be modified for
 % general case.
 
 maxEyePos = size(eyeDataML,1);
 for k=1:length(goodStimTimesThisTrial)
-    pos = round(goodStimTimesThisTrial(k)*1000) + (1:round(epochDur*1000));
+    pos = round((goodStimTimesThisTrial(k)+timeStartFromBaseLine)*1000) + (1:round(epochDur*1000));
     if max(pos)<=maxEyePos
         eyeDataThisTrial(k,:,:) = eyeDataML(pos,:); %#ok<*AGROW> 
     else
         disp('Trial aborted before time... ');
         posShort = round(goodStimTimesThisTrial(k)*1000):maxEyePos;
-        posRemaining = 750-length(posShort);
+        posRemaining = round(epochDur*1000)-length(posShort);
         for m=1:2
             eyeDataThisTrial(k,:,m) = [eyeDataML(posShort,m); zeros(posRemaining,1)];
         end
