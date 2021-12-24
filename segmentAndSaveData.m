@@ -16,9 +16,10 @@
 % 9. M2 (Meditation 2): Duration: 15 minutes - same as M1 but with gamma
 % protocol running 
 
-function segmentAndSaveData(subjectName,expDate,folderSourceString)
+function segmentAndSaveData(subjectName,expDate,folderSourceString,saveEyeDataMtype)
 
 if ~exist('folderSourceString','var');    folderSourceString=[];        end
+if ~exist('saveEyeDataMtype','var');      saveEyeDataMtype=3;           end 
 
 if isempty(folderSourceString)
     folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
@@ -35,7 +36,10 @@ for i=1:length(protocolNameList)
     protocolName = protocolNameList{i};
     
     % Get Digital events from BrainProducts (BP)
-    folderExtract = fullfile(folderSourceString,'data',subjectName,gridType,expDate,protocolName,'extractedData');
+    folderName = fullfile(folderSourceString,'data',subjectName,gridType,expDate,protocolName);
+    folderExtract = fullfile(folderName,'extractedData');
+    folderSave = fullfile(folderName,'segmentedData','eyeData');
+    
     [digitalTimeStamps,digitalEvents]=extractDigitalDataBrainProducts(subjectName,expDate,protocolName,folderSourceString,gridType,0);
     trialStartTimesListBP = digitalTimeStamps(digitalEvents==trialStartCode);
     trialEndTimesListBP = digitalTimeStamps(digitalEvents==trialEndCode);
@@ -53,7 +57,10 @@ for i=1:length(protocolNameList)
     goodStimTimesML = []; % Same sequence constructed using ML data. Used for comparison
     goodStimCodeNums = [];
     
-    eyeData = [];
+    eyeRawData = [];
+    eyeRawGazeData = [];
+    eyeDataDegX = [];
+    eyeDataDegY = [];    
     
     for j=1:numTrials
         trialStartTimeBP = trialStartTimesListBP(j); % Start of trial as per BP timeline
@@ -91,9 +98,17 @@ for i=1:length(protocolNameList)
             goodStimTimesML = cat(2,goodStimTimesML,MLDataThisTrial.AbsoluteTrialStartTime/1000 + goodStimTimeThisTrial');
         end
         
-        % Get and Align eye data
-        eyeDataThisTrial = getEyeDataThisTrial(MLDataThisTrial.AnalogData.Eye,goodStimTimeThisTrial,timeStartFromBaseLine,deltaT);
-        eyeData = cat(1,eyeData,eyeDataThisTrial);
+        if saveEyeDataMtype == 3 % save both Raw and Gaze data in the 'ExtractedData folder'    
+            % Get and Align eye data (RawData)     
+            eyeRawDataThisTrial = getEyeDataThisTrial(MLDataThisTrial.AnalogData.Eye,goodStimTimeThisTrial,timeStartFromBaseLine,deltaT);
+            eyeRawData = cat(1,eyeRawData,eyeRawDataThisTrial);
+            % Get and Align eye data(GazeData)
+            eyeGazeDataThisTrial = getEyeDataThisTrial(MLDataThisTrial.AnalogData.EyeExtra,goodStimTimeThisTrial,timeStartFromBaseLine,deltaT);
+            eyeRawGazeData = cat(1,eyeRawGazeData,eyeGazeDataThisTrial);    
+            % Convert the Gaze date to degrees
+            [eyeDataDegXThisTrial,eyeDataDegYThisTrial] = convertEyeDataPix2DegML(squeeze(eyeGazeDataThisTrial));
+            eyeDataDegX =  cat(1,eyeDataDegX,eyeDataDegXThisTrial); eyeDataDegY = cat(1,eyeDataDegY,eyeDataDegYThisTrial);
+        end
     end
     
     compareBPWithML(goodStimTimes,goodStimTimesML);
@@ -102,10 +117,12 @@ for i=1:length(protocolNameList)
     makeDirectory(folderExtract);
     save(fullfile(folderExtract,'goodStimCodeNums.mat'),'goodStimCodeNums','goodStimTimes');
     save(fullfile(folderExtract,'MLInfo.mat'),'MLConfig','MLTrialRecord');
-    save(fullfile(folderExtract,'EyeData.mat'),'eyeData');
-    
+    save(fullfile(folderExtract,'EyeData.mat'),'eyeRawData','eyeRawGazeData');
     % Save segmented data
     getEEGDataBrainProducts(subjectName,expDate,protocolName,folderSourceString,gridType,goodStimTimes,timeStartFromBaseLine,deltaT);
+    % Save eye data in segmentedData(ML)
+    makeDirectory(folderSave);
+    save(fullfile(folderSave,'eyeDataDeg.mat'),'eyeDataDegX','eyeDataDegY');    
 end
 end
 function goodStimPos = getGoodStimPosGammaProtocol(digitalEvents)
