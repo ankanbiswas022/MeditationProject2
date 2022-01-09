@@ -16,10 +16,11 @@
 % 9. M2 (Meditation 2): Duration: 15 minutes - same as M1 but with gamma
 % protocol running 
 
-function segmentAndSaveData(subjectName,expDate,folderSourceString,saveEyeDataMtype)
+function segmentAndSaveData(subjectName,expDate,folderSourceString,saveEyeDataMtype,FsEye)
 
 if ~exist('folderSourceString','var');    folderSourceString=[];        end
 if ~exist('saveEyeDataMtype','var');      saveEyeDataMtype=3;           end 
+if ~exist('FsEye','var');                 FsEye=1000;                   end 
 
 if isempty(folderSourceString)
     folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
@@ -27,7 +28,8 @@ end
 
 gridType = 'EEG';
 %protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'IAT'} {'EO2'} {'EC2'} {'M2'}];
-protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}]; % IAT not considered for now
+protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}]; % IAT is not considered 
+
 timeStartFromBaseLine = -1.25; deltaT = 2.5;
 
 trialStartCode = 9; trialEndCode = 18;
@@ -107,17 +109,18 @@ for i=1:length(protocolNameList)
             eyeRawGazeData = cat(1,eyeRawGazeData,eyeGazeDataThisTrial);    
             % Convert the Gaze date to degrees
             [eyeDataDegXThisTrial,eyeDataDegYThisTrial] = convertEyeDataPix2DegML(squeeze(eyeGazeDataThisTrial));
-            eyeDataDegX =  cat(1,eyeDataDegX,eyeDataDegXThisTrial); eyeDataDegY = cat(1,eyeDataDegY,eyeDataDegYThisTrial);
+            eyeDataDegX =  cat(1,eyeDataDegX,eyeDataDegXThisTrial'); eyeDataDegY = cat(1,eyeDataDegY,eyeDataDegYThisTrial');
         end
     end
     
     compareBPWithML(goodStimTimes,goodStimTimesML);
+    eyeRangeMS = [-min(deltaT*1000,abs(timeStartFromBaseLine)*1000)+1000/FsEye abs(timeStartFromBaseLine)*1000-1000/FsEye];     
     
     % Save useful data in folderExtract
     makeDirectory(folderExtract);
     save(fullfile(folderExtract,'goodStimCodeNums.mat'),'goodStimCodeNums','goodStimTimes');
     save(fullfile(folderExtract,'MLInfo.mat'),'MLConfig','MLTrialRecord');
-    save(fullfile(folderExtract,'EyeData.mat'),'eyeRawData','eyeRawGazeData');
+    save(fullfile(folderExtract,'EyeData.mat'),'eyeRawData','eyeRawGazeData','eyeRangeMS','FsEye');
     % Save segmented data
     getEEGDataBrainProducts(subjectName,expDate,protocolName,folderSourceString,gridType,goodStimTimes,timeStartFromBaseLine,deltaT);
     % Save eye data in segmentedData(ML)
