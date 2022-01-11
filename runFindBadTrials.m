@@ -1,20 +1,21 @@
-% Things to do
-
-% Make Montage of the new ActiCap64 (done)
-% Save eye data appropriately (done)
-
-% Display bad eye and bad trials in the display plot
-% Plot time series of power in alpha and gamma bands
 
 [subjectNames,expDates] = subjectDatabaseMeditationProject2;
 folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
 % folderSourceString = 'D:\Projects\MeditationProjects\MeditationProject2';
 
-segmentTheseIndices = 3;
+segmentTheseIndices = 6;
 gridType = 'EEG';
-impedanceTag = '_Impedance_start'; 
-capType = 'actiCap64_2019';
 nonEEGElectrodes = 65:80;
+impedanceTag = '_Impedance_Start'; 
+capType = 'actiCap64_2019';
+saveDataFlag = 1;
+badTrialNameStr = '';
+displayResultsFlag = 1;
+electrodeGroup = ''; % by default, highPriorityElectrodes are used in this case
+checkPeriod = [-1.25 1.25];
+checkBaselinePeriod = [-1 0];
+useEyeData = 0;
+
 protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}];
 
 for i=1:length(segmentTheseIndices)
@@ -23,6 +24,7 @@ for i=1:length(segmentTheseIndices)
     
     for j=1:length(protocolNameList)
         protocolName = protocolNameList{j}; 
-        [badTrials,allBadTrials,badTrialsUnique,badElecs,totalTrials,slopeValsVsFreq] = findBadTrialsWithEEG(subjectName,expDate,protocolName,folderSourceString,gridType,[],nonEEGElectrodes,impedanceTag,capType);
+        findBadTrialsWithEEG(subjectName,expDate,protocolName,folderSourceString,gridType,[],nonEEGElectrodes,impedanceTag,capType,...
+            saveDataFlag,badTrialNameStr,displayResultsFlag,electrodeGroup,checkPeriod,checkBaselinePeriod,useEyeData);
     end
 end

@@ -4,31 +4,28 @@
 % G1, G2 and M2, a stimulus is presented after 1.25 seconds. In the
 % remaining trials, nothing happens.
 
-% There are 9 protocols as listed below.
+% There are 8 protocols as listed below.
 % 1. EO1 (eyes open 1): Duration: 5 minutes.
 % 2. EC1 (eyes close 1): Duration: 5 minutes
 % 3. G1  (Gamma 1): Duration: 5 minutes. 
 % 4. M1  (Meditation 1): Duration: 15 minutes.
 % 5. G2 (Gamma 2): Same as G1
-% 6. IAT (Implicit association task): Duration: 12 minutes: For now, this is not analyzed
-% 7. EO2 (eyes open 2): Same as EO1
-% 8. EC2 (eyes close 2): Same as EC2
-% 9. M2 (Meditation 2): Duration: 15 minutes - same as M1 but with gamma
+% 6. EO2 (eyes open 2): Same as EO1
+% 7. EC2 (eyes close 2): Same as EC2
+% 8. M2 (Meditation 2): Duration: 15 minutes - same as M1 but with gamma
 % protocol running 
 
-function segmentAndSaveData(subjectName,expDate,folderSourceString,saveEyeDataMtype,FsEye)
+function segmentAndSaveData(subjectName,expDate,folderSourceString,FsEye)
 
 if ~exist('folderSourceString','var');    folderSourceString=[];        end
-if ~exist('saveEyeDataMtype','var');      saveEyeDataMtype=3;           end 
-if ~exist('FsEye','var');                 FsEye=1000;                   end 
+if ~exist('FsEye','var');                 FsEye=1000;                   end
 
 if isempty(folderSourceString)
     folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
 end
 
 gridType = 'EEG';
-%protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'IAT'} {'EO2'} {'EC2'} {'M2'}];
-protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}]; % IAT is not considered 
+protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}];
 
 timeStartFromBaseLine = -1.25; deltaT = 2.5;
 
@@ -100,21 +97,19 @@ for i=1:length(protocolNameList)
             goodStimTimesML = cat(2,goodStimTimesML,MLDataThisTrial.AbsoluteTrialStartTime/1000 + goodStimTimeThisTrial');
         end
         
-        if saveEyeDataMtype == 3 % save both Raw and Gaze data in the 'ExtractedData folder'    
-            % Get and Align eye data (RawData)     
-            eyeRawDataThisTrial = getEyeDataThisTrial(MLDataThisTrial.AnalogData.Eye,goodStimTimeThisTrial,timeStartFromBaseLine,deltaT);
-            eyeRawData = cat(1,eyeRawData,eyeRawDataThisTrial);
-            % Get and Align eye data(GazeData)
-            eyeGazeDataThisTrial = getEyeDataThisTrial(MLDataThisTrial.AnalogData.EyeExtra,goodStimTimeThisTrial,timeStartFromBaseLine,deltaT);
-            eyeRawGazeData = cat(1,eyeRawGazeData,eyeGazeDataThisTrial);    
-            % Convert the Gaze date to degrees
-            [eyeDataDegXThisTrial,eyeDataDegYThisTrial] = convertEyeDataPix2DegML(squeeze(eyeGazeDataThisTrial));
-            eyeDataDegX =  cat(1,eyeDataDegX,eyeDataDegXThisTrial'); eyeDataDegY = cat(1,eyeDataDegY,eyeDataDegYThisTrial');
-        end
+        % Get and Align eye data (RawData)
+        eyeRawDataThisTrial = getEyeDataThisTrial(MLDataThisTrial.AnalogData.Eye,goodStimTimeThisTrial,timeStartFromBaseLine,deltaT,FsEye);
+        eyeRawData = cat(1,eyeRawData,eyeRawDataThisTrial);
+        % Get and Align eye data(GazeData)
+        eyeGazeDataThisTrial = getEyeDataThisTrial(MLDataThisTrial.AnalogData.EyeExtra,goodStimTimeThisTrial,timeStartFromBaseLine,deltaT,FsEye);
+        eyeRawGazeData = cat(1,eyeRawGazeData,eyeGazeDataThisTrial);
+        % Convert the Gaze date to degrees
+        [eyeDataDegXThisTrial,eyeDataDegYThisTrial] = convertEyeDataPix2DegML(squeeze(eyeGazeDataThisTrial));
+        eyeDataDegX =  cat(1,eyeDataDegX,eyeDataDegXThisTrial'); eyeDataDegY = cat(1,eyeDataDegY,eyeDataDegYThisTrial');
     end
     
     compareBPWithML(goodStimTimes,goodStimTimesML);
-    eyeRangeMS = [-min(deltaT*1000,abs(timeStartFromBaseLine)*1000)+1000/FsEye abs(timeStartFromBaseLine)*1000-1000/FsEye];     
+    eyeRangeMS = (timeStartFromBaseLine + [0 deltaT])*1000;     
     
     % Save useful data in folderExtract
     makeDirectory(folderExtract);
@@ -144,7 +139,7 @@ dTBP = diff(goodStimTimes);
 dTML = diff(goodStimTimesML);
 maxD = 1000*max(abs(dTBP-dTML));
 
-maxTol = 5; % Must be within 5 ms
+maxTol = 10; % Must be within this limit
 if maxD>maxTol
     plot(dTBP,'b'); hold on; plot(dTML,'r');
     error(['max difference in timing: ' num2str(maxD) 'exceeds maxTolerence of ' num2str(maxTol) ' ms']);
@@ -152,19 +147,20 @@ else
     disp(['max difference in relative timing: ' num2str(maxD) ' ms']);
 end
 end
-function eyeDataThisTrial = getEyeDataThisTrial(eyeDataML,goodStimTimesThisTrial,timeStartFromBaseLine,epochDur)
-% This assumes that eye data is sampled at 1000 Hz. Needs to be modified for
-% general case.
+function eyeDataThisTrial = getEyeDataThisTrial(eyeDataML,goodStimTimesThisTrial,timeStartFromBaseLine,epochDur,FsEye)
 
 maxEyePos = size(eyeDataML,1);
+numSamplesToUse = round(epochDur*FsEye);
+xsEye = (1:maxEyePos)/FsEye;
+
 for k=1:length(goodStimTimesThisTrial)
-    pos = round((goodStimTimesThisTrial(k)+timeStartFromBaseLine)*1000) + (1:round(epochDur*1000));
-    if max(pos)<=maxEyePos
-        eyeDataThisTrial(k,:,:) = eyeDataML(pos,:); %#ok<*AGROW> 
+    startPos = find(xsEye<(goodStimTimesThisTrial(k)+timeStartFromBaseLine), 1, 'last' );
+    if (startPos+numSamplesToUse)<=maxEyePos
+        eyeDataThisTrial(k,:,:) = eyeDataML(startPos + (1:numSamplesToUse),:); %#ok<*AGROW> 
     else
         disp('Trial aborted before time... ');
-        posShort = round(goodStimTimesThisTrial(k)*1000):maxEyePos;
-        posRemaining = round(epochDur*1000)-length(posShort);
+        posShort = (startPos+1):maxEyePos;
+        posRemaining = numSamplesToUse-length(posShort);
         for m=1:2
             eyeDataThisTrial(k,:,m) = [eyeDataML(posShort,m); zeros(posRemaining,1)];
         end
