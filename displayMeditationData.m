@@ -1,13 +1,14 @@
 % Displays data collected for the meditation project
+% badTrialRejectionFlag: 1: Don't reject badElectrodes, 2: reject badElectrodes for that protocol, 3: Reject badElectrodes of all protocols 
 
 % ToDo
-% 1. Pipeline to find bad trials based on 1) eye data, 2) time domain signal fluctuation, 3) PSDs
-% 2. Option to use unipolar or bipolar referencing
+% 1. Option to use unipolar or bipolar referencing
 
-function displayMeditationData(subjectName,expDate,folderSourceString,badElectrodeList,plotRawTFFlag)
+function displayMeditationData(subjectName,expDate,folderSourceString,badTrialNameStr,badElectrodeRejectionFlag,plotRawTFFlag)
 
 if ~exist('folderSourceString','var');    folderSourceString=[];        end
-if ~exist('badElectrodeList','var');      badElectrodeList=[];          end
+if ~exist('badElectrodeList','var');      badTrialNameStr='_v5';        end
+if ~exist('badElectrodeRejectionFlag','var'); badElectrodeRejectionFlag=2;  end
 if ~exist('plotRawTFFlag','var');         plotRawTFFlag=0;              end
 
 if isempty(folderSourceString)
@@ -15,22 +16,46 @@ if isempty(folderSourceString)
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Fixed variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-gridType = 'EEG';
-protocolNameList = [{'EO1'} {'EC1'} {'G1'}          {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}];
-colorNames       = [{'m'}   {'c'}   {[0.5 0.5 0.5]} {'g'}  {'k'}  {'r'}   {'b'}   {'y'}];
+gridType = 'EEG'; 
+capType = 'actiCap64_2019';
+
+protocolNameList = [{'EO1'}     {'EC1'}     {'G1'}      {'M1'}          {'G2'}      {'EO2'}     {'EC2'}     {'M2'}];
+colorNames       = [{[0.9 0 0]} {[0 0.9 0]} {[0 0 0.9]} {[0.9 0.9 0.9]} {[0 0 0.3]} {[0.3 0 0]} {[0 0.3 0]} {[0.3 0.3 0.3]}];
 numProtocols = length(protocolNameList);
 
-electrodeGroupList{1} = [16:18    (32+[14:18 32])]; groupNameList{1} = 'Occipital'; % Occipital
-electrodeGroupList{2} = [11:15 19:20 22:23 (32+[11:13 19:22])]; groupNameList{2} = 'Centro-Parietal'; % Centro-Parietal
-electrodeGroupList{3} = [6:8 24:25 28:29   (32+[7:9 24:26])]; groupNameList{3} = 'Fronto-Central'; % Fronto-Central
-electrodeGroupList{4} = [1:4 30:32 (32+[1:5 28:31])]; groupNameList{4} = 'Frontal'; % Frontal
-electrodeGroupList{5} = [5 9:10 21 26:27 (32+[6 10 23 27])]; groupNameList{5} = 'Temporal'; % Temporal
+comparePSDConditions{1} = [1 6];
+comparePSDConditions{2} = [2 7];
+comparePSDConditions{3} = [3 5];
+comparePSDConditions{4} = [4 8];
+numPSDComparisons = length(comparePSDConditions);
+comparePSDConditionStr = cell(1,numPSDComparisons);
 
+for i=1:numPSDComparisons
+   for j=1:length(comparePSDConditions{i})
+       comparePSDConditionStr{i} = cat(2,comparePSDConditionStr{i},protocolNameList{comparePSDConditions{i}(j)});
+   end
+end
+
+freqList{1} = [8 12]; freqListNames{1} = 'Alpha';
+freqList{2} = [20 34]; freqListNames{2} = 'SG';
+freqList{3} = [36 66]; freqListNames{3} = 'FG';
+numFreqRanges = length(freqList);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+[~,~,~,electrodeGroupList,groupNameList,highPriorityElectrodeNums] = electrodePositionOnGrid(1,gridType,[],capType);
 numGroups = length(electrodeGroupList);
+electrodeGroupList{numGroups+1} = highPriorityElectrodeNums;
+groupNameList{numGroups+1} = 'highPriority';
+numGroups=numGroups+1;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Set up plots %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-hTF = getPlotHandles(numGroups,numProtocols,[0.05 0.05 0.75 0.9],0.01,0.01,1);
-hPSD  = getPlotHandles(numGroups,1,[0.825 0.05 0.15 0.9],0.01,0.01,1);
+hBadElectrodes = getPlotHandles(1,numProtocols,[0.05 0.875 0.6 0.1],0.01,0.01,1);
+hBadElectrodes2 = getPlotHandles(1,4,[0.7 0.875 0.25 0.1],0.01,0.01,1);
+
+hTF = getPlotHandles(numGroups,numProtocols,[0.05 0.35 0.6 0.5],0.01,0.01,1);
+hPSD  = getPlotHandles(numGroups,numPSDComparisons,[0.7 0.35 0.25 0.5],0.01,0.01,1);
+hTopo = getPlotHandles(numFreqRanges,numProtocols,[0.05 0.05 0.6 0.25],0.01,0.01,1);
+hPowerVsTime = getPlotHandles(numFreqRanges,1,[0.7 0.05 0.25 0.25],0.01,0.01,1);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Ranges for plots %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 colormap jet;
@@ -42,42 +67,90 @@ else
     cLims = [-1.5 1.5];
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% display bad electrodes for all protocols and also generate common bad electrodes
+badTrialsList = cell(1,numProtocols);
+badElecList = cell(1,numProtocols);
+badElectrodes.badImpedanceElecs = [];
+badElectrodes.noisyElecs = [];
+badElectrodes.flatPSDElecs = [];
+
+for i=1:numProtocols
+    protocolName=protocolNameList{i};
+    badFileName = fullfile(folderSourceString,'data',subjectName,gridType,expDate,protocolName,'segmentedData',['badTrials' badTrialNameStr '.mat']);
+    if exist(badFileName,'file')
+        x=load(badFileName);
+        badTrialsList{i}=x.badTrials;
+        badElecList{i} = x.badElecs;
+        badElectrodes.badImpedanceElecs = cat(1,badElectrodes.badImpedanceElecs,x.badElecs.badImpedanceElecs);
+        badElectrodes.noisyElecs = cat(1,badElectrodes.noisyElecs,x.badElecs.noisyElecs);
+        badElectrodes.flatPSDElecs = cat(1,badElectrodes.flatPSDElecs,x.badElecs.flatPSDElecs);
+        displayBadElecs(hBadElectrodes(i),subjectName,expDate,protocolName,folderSourceString,gridType,capType,badTrialNameStr);
+        title(hBadElectrodes(i),protocolNameList{i},'color',colorNames{i});
+    else
+        badTrialsList{i}=[];
+        badElecList{i} = [];
+    end
+end
+
+badElectrodes.badImpedanceElecs = unique(badElectrodes.badImpedanceElecs);
+badElectrodes.noisyElecs = unique(badElectrodes.noisyElecs);
+badElectrodes.flatPSDElecs = unique(badElectrodes.flatPSDElecs);
+displayBadElecs(hBadElectrodes2(1),subjectName,expDate,protocolName,folderSourceString,gridType,capType,badTrialNameStr,badElectrodes,hBadElectrodes2(2));
+
+% displayElectrodeGroups
+showElectrodeGroups(hBadElectrodes2(3:4),capType,electrodeGroupList,groupNameList);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Get Data
 for g=1:numGroups
-    electrodeList = setdiff(electrodeGroupList{g},badElectrodeList);
+
     disp(['Working on group: ' groupNameList{g}]);
-    
+
     % Get Data
     psdVals = cell(1,numProtocols);
     freqVals = cell(1,numProtocols);
+    meanPSDVals = cell(1,numProtocols);
+    
+    numGoodElectrodesList = zeros(1,numProtocols);
+    
     for i=1:numProtocols
-        protocolName = protocolNameList{i};
-        [psdVals{i},freqVals{i}] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList);
+        
+        if badElectrodeRejectionFlag==1
+           electrodeList = electrodeGroupList{g};
+        elseif badElectrodeRejectionFlag==2
+            electrodeList = setdiff(electrodeGroupList{g},getAllBadElecs(badElecList{i}));
+        elseif badElectrodeRejectionFlag==3
+            electrodeList = setdiff(electrodeGroupList{g},getAllBadElecs(badElectrodes));
+        end
+        numGoodElectrodesList(i) = length(electrodeList);
+        
+        if ~isempty(electrodeList)
+            protocolName = protocolNameList{i};
+            [psdVals{i},freqVals{i}] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList);
+            meanPSDVals{i} = mean(psdVals{i}(:,setdiff(1:size(psdVals{i},2),badTrialsList{i})),2);
+        end
     end
     
-    % Plot Data
     for i=1:numProtocols
+        
+        % Time-frequency plots
         if ~isempty(psdVals{i})
-            
+            numTrials = size(psdVals{i},2);
             if plotRawTFFlag
-                pcolor(hTF(g,i),1:size(psdVals{i},2),freqVals{i},log10(psdVals{i})); 
+                pcolor(hTF(g,i),1:numTrials,freqVals{i},(psdVals{i}));
             else
-                bl = repmat(mean(log10(psdVals{1}(:,1:100)),2),1,size(psdVals{i},2));
-                pcolor(hTF(g,i),1:size(psdVals{i},2),freqVals{i},log10(psdVals{i})-bl);
+                bl = repmat(meanPSDVals{1},1,numTrials);
+                pcolor(hTF(g,i),1:numTrials,freqVals{i},(psdVals{i})-bl);
             end
-                
+            
             shading(hTF(g,i),'interp');
             caxis(hTF(g,i),cLims); 
             ylim(hTF(g,i),freqRangeHz);
             
-            if plotRawTFFlag
-                plot(hPSD(g),freqVals{i},mean(log10(psdVals{i}),2),'color',colorNames{i});
-            else
-                plot(hPSD(g),freqVals{i},mean(log10(psdVals{i})-bl,2),'color',colorNames{i});
-            end
-            xlim(hPSD(g),freqRangeHz);
-            ylim(hPSD(g),cLims);
-            hold(hPSD(g),'on');
+            hold(hTF(g,i),'on');
+            plot(hTF(g,i),badTrialsList{i},freqRangeHz(2)-1,'k.');
+            text(1,freqRangeHz(2)-5,['N=' num2str(numGoodElectrodesList(i))],'parent',hTF(g,i));
         end
         
         if (i==1 && g<numGroups)
@@ -89,16 +162,37 @@ for g=1:numGroups
         end
     end
     
-    if g<numGroups
-            set(hPSD(g),'XTickLabel',[]);
-    end
-    
     ylabel(hTF(g,1),groupNameList{g});
+        
+    % meanPSD Plots
+    for i = 1:numPSDComparisons
+        for j=1:length(comparePSDConditions{i})
+            conditionNum = comparePSDConditions{i}(j);
+            if plotRawTFFlag
+                plot(hPSD(g,i),freqVals{conditionNum},meanPSDVals{conditionNum},'color',colorNames{conditionNum});
+            else
+                plot(hPSD(g,i),freqVals{conditionNum},meanPSDVals{conditionNum}-meanPSDVals{1},'color',colorNames{conditionNum});
+            end
+            hold(hPSD(g,i),'on');
+        end
+        
+        if ~plotRawTFFlag
+            plot(hPSD(g,i),freqVals{conditionNum},zeros(1,length(freqVals{conditionNum})),'k--');
+        end
+        
+        xlim(hPSD(g,i),freqRangeHz);
+        ylim(hPSD(g,i),cLims);
+        if g<numGroups
+            set(hPSD(g,i),'XTickLabel',[]);
+        end
+        
+        if g==1
+            title(hPSD(g,i),comparePSDConditionStr{i});
+        end
+    end
 end
 
-legend(hPSD(numGroups),protocolNameList);
 for i=1:numProtocols
-    title(hTF(1,i),protocolNameList{i});
     xlabel(hTF(numGroups,i),'TrialNum');
 end
 end
@@ -134,6 +228,111 @@ else
         e = load(fullfile(folderSegment,'LFP',['elec' num2str(electrodeList(i)) '.mat']));
         [psdTMP(i,:,:),freqVals] = mtspectrumc(e.analogData(:,goodTimePos)',params); %#ok<AGROW>
     end
-    psd = squeeze(mean(psdTMP,1));
+    psd = log10(squeeze(mean(psdTMP,1)));
 end
+end
+function displayBadElecs(hBadElectrodes,subjectName,expDate,protocolName,folderSourceString,gridType,capType,badTrialNameStr,badElectrodes,hStats)
+
+if ~exist('gridType','var');        gridType = 'EEG';                   end
+if ~exist('capType','var');         capType = 'actiCap64_2019';         end
+if ~exist('badTrialNameStr','var'); badTrialNameStr = '_v5';            end
+if ~exist('badElectrodes','var');   badElectrodes = [];                 end
+if ~exist('hStats','var');          hStats = [];                        end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Get data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+folderSegment = fullfile(folderSourceString,'data',subjectName,gridType,expDate,protocolName,'segmentedData');
+badTrialsInfo = load(fullfile(folderSegment,['badTrials' badTrialNameStr '.mat']));
+
+%%%%%%%%%%%%%%%%%%%%%% Compare with Montage %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+x = load([capType 'Labels.mat']); montageLabels = x.montageLabels(:,2);
+x = load([capType '.mat']); montageChanlocs = x.chanlocs;
+
+if ~isfield(badTrialsInfo,'eegElectrodeLabels') % Check if the labels match with the save labels, if these labels have been saved
+    disp('Electrode labels not specified in badTrials file. Taking from Montage...');
+else
+    if ~isequal(montageLabels(:),badTrialsInfo.eegElectrodeLabels(:))
+        error('Montage labels do not match with channel labels in badTrials');
+    else
+        disp('Montage labels match with channel labels in badTrials');
+    end
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Topoplot %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+axes(hBadElectrodes);
+electrodeSize = 5;
+numElectrodes = length(montageLabels);
+
+for i=1:numElectrodes
+%    label = num2str(i); %[num2str(i) '-' montageLabels{i}];
+    montageChanlocs(i).labels = ' ';
+end
+
+% If you specify these, they override the existing ones
+badImpedanceElectrodeColor = 'r';
+noisyElectrodeColor = 'm';
+flatPSDElectrodeColor = 'b';
+if isempty(badElectrodes)
+    badImpedanceElectrodes = badTrialsInfo.badElecs.badImpedanceElecs;
+    noisyElectrodes = badTrialsInfo.badElecs.noisyElecs;
+    flatPSDElectrodes = badTrialsInfo.badElecs.flatPSDElecs;
+else
+    badImpedanceElectrodes = badElectrodes.badImpedanceElecs;
+    noisyElectrodes = badElectrodes.noisyElecs;
+    flatPSDElectrodes = badElectrodes.flatPSDElecs;
+end
+
+topoplot(zeros(1,numElectrodes),montageChanlocs,'electrodes','on','style','map','emarker2',{badImpedanceElectrodes,'o',badImpedanceElectrodeColor,electrodeSize});
+topoplot(zeros(1,numElectrodes),montageChanlocs,'electrodes','on','style','map','emarker2',{noisyElectrodes,'o',noisyElectrodeColor,electrodeSize});
+topoplot(zeros(1,numElectrodes),montageChanlocs,'electrodes','on','style','map','emarker2',{flatPSDElectrodes,'o',flatPSDElectrodeColor,electrodeSize});
+%topoplot(zeros(1,numElectrodes),montageChanlocs,'electrodes','on','style','map','emarker2',{highPriorityElectrodeList,'o',highPriorityElectrodeColor,electrodeSize});
+topoplot([],montageChanlocs,'electrodes','labels','style','blank');
+
+if ~isempty(hStats)
+    axes(hStats)
+    set(hStats,'visible','off');
+    text(0.05,0.9,'bad Impedance','color',badImpedanceElectrodeColor);
+    text(0.05,0.75,num2str(badImpedanceElectrodes(:)'),'color',badImpedanceElectrodeColor);
+    
+    text(0.05,0.6,'Noisy','color',noisyElectrodeColor);
+    text(0.05,0.45,num2str(noisyElectrodes(:)'),'color',noisyElectrodeColor);
+    
+    text(0.05,0.3,'FlatPSD','color',flatPSDElectrodeColor);
+    text(0.05,0.15,num2str(flatPSDElectrodes(:)'),'color',flatPSDElectrodeColor);
+    
+end
+end
+function allBadElecs = getAllBadElecs(badElectrodes)
+allBadElecs = [badElectrodes.badImpedanceElecs; badElectrodes.noisyElecs; badElectrodes.flatPSDElecs];
+end
+function showElectrodeGroups(hPlots,capType,electrodeGroupList,groupNameList)
+
+if ~exist('capType','var');         capType = 'actiCap64_2019';         end
+
+%%%%%%%%%%%%%%%%%%%%%% Compare with Montage %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+x = load([capType 'Labels.mat']); montageLabels = x.montageLabels(:,2);
+x = load([capType '.mat']); montageChanlocs = x.chanlocs;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Topoplot %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+axes(hPlots(1));
+electrodeSize = 5;
+numElectrodes = length(montageLabels);
+
+for i=1:numElectrodes
+    montageChanlocs(i).labels = ' ';
+end
+
+numElectrodeGroups = length(electrodeGroupList);
+electrodeGroupColorList = jet(numElectrodeGroups);
+
+for i=1:numElectrodeGroups
+    topoplot(zeros(1,numElectrodes),montageChanlocs,'electrodes','on','style','map','emarker2',{electrodeGroupList{i},'o',electrodeGroupColorList(i,:),electrodeSize});
+end
+topoplot([],montageChanlocs,'electrodes','labels','style','blank');
+
+axes(hPlots(2))
+set(hPlots(2),'visible','off');
+for i=1:numElectrodeGroups
+    text(0.05,0.9-0.15*(i-1),groupNameList{i},'color',electrodeGroupColorList(i,:),'unit','normalized');
+end
+
 end

@@ -4,7 +4,7 @@
 folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
 % folderSourceString = 'D:\Projects\MeditationProjects\MeditationProject2';
 
-segmentTheseIndices = 6;
+segmentTheseIndices = 3;
 gridType = 'EEG'; 
 capType = 'actiCap64_2019';
 impedanceTag = '_Impedance_Start'; 
