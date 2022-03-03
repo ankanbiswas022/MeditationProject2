@@ -6,10 +6,10 @@
 
 function displayMeditationData(subjectName,expDate,folderSourceString,badTrialNameStr,badElectrodeRejectionFlag,plotRawTFFlag)
 
-if ~exist('folderSourceString','var');    folderSourceString=[];        end
-if ~exist('badElectrodeList','var');      badTrialNameStr='_v5';        end
+if ~exist('folderSourceString','var');        folderSourceString=[];        end
+if ~exist('badElectrodeList','var');          badTrialNameStr='_v5';        end
 if ~exist('badElectrodeRejectionFlag','var'); badElectrodeRejectionFlag=2;  end
-if ~exist('plotRawTFFlag','var');         plotRawTFFlag=0;              end
+if ~exist('plotRawTFFlag','var');             plotRawTFFlag=0;              end
 
 if isempty(folderSourceString)
     folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
@@ -20,7 +20,7 @@ gridType = 'EEG';
 capType = 'actiCap64_2019';
 
 protocolNameList = [{'EO1'}     {'EC1'}     {'G1'}      {'M1'}          {'G2'}      {'EO2'}     {'EC2'}     {'M2'}];
-colorNames       = [{[0.9 0 0]} {[0 0.9 0]} {[0 0 0.9]} {[0.9 0.9 0.9]} {[0 0 0.3]} {[0.3 0 0]} {[0 0.3 0]} {[0.3 0.3 0.3]}];
+colorNames       = [{[0.9 0 0]} {[0 0.9 0]} {[0 0 0.9]} {[0.7 0.7 0.7]} {[0 0 0.3]} {[0.3 0 0]} {[0 0.3 0]} {[0.3 0.3 0.3]}];
 numProtocols = length(protocolNameList);
 
 comparePSDConditions{1} = [1 6];
@@ -36,7 +36,7 @@ for i=1:numPSDComparisons
    end
 end
 
-freqList{1} = [8 12]; freqListNames{1} = 'Alpha';
+freqList{1} = [8 12];  freqListNames{1} = 'Alpha';
 freqList{2} = [20 34]; freqListNames{2} = 'SG';
 freqList{3} = [36 66]; freqListNames{3} = 'FG';
 numFreqRanges = length(freqList);
@@ -78,6 +78,7 @@ badElectrodes.flatPSDElecs = [];
 for i=1:numProtocols
     protocolName=protocolNameList{i};
     badFileName = fullfile(folderSourceString,'data',subjectName,gridType,expDate,protocolName,'segmentedData',['badTrials' badTrialNameStr '.mat']);
+    % display bad electrodes
     if exist(badFileName,'file')
         x=load(badFileName);
         badTrialsList{i}=x.badTrials;
@@ -103,7 +104,7 @@ showElectrodeGroups(hBadElectrodes2(3:4),capType,electrodeGroupList,groupNameLis
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Get Data
-for g=1:numGroups
+for g=1:numGroups %for all the different groups of the electrode
 
     disp(['Working on group: ' groupNameList{g}]);
 
@@ -111,11 +112,21 @@ for g=1:numGroups
     psdVals = cell(1,numProtocols);
     freqVals = cell(1,numProtocols);
     meanPSDVals = cell(1,numProtocols);
+    tfPower{i} = cell(1,numProtocols);
+    timeValsTF{i} = cell(1,numProtocols);
+    freqValsTF{i} = cell(1,numProtocols);
+        
+    meanAlpha = cell(1,numProtocols);
+    meanSG = cell(1,numProtocols);
+    meanFG = cell(1,numProtocols);
+    
+    indVec = cell(1,numProtocols); %initializing with numProtocols (as of now)
     
     numGoodElectrodesList = zeros(1,numProtocols);
     
-    for i=1:numProtocols
+    for i=1:numProtocols  %% getting the data
         
+        % removing the bad electrodes
         if badElectrodeRejectionFlag==1
            electrodeList = electrodeGroupList{g};
         elseif badElectrodeRejectionFlag==2
@@ -127,12 +138,32 @@ for g=1:numGroups
         
         if ~isempty(electrodeList)
             protocolName = protocolNameList{i};
-            [psdVals{i},freqVals{i}] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList);
-            meanPSDVals{i} = mean(psdVals{i}(:,setdiff(1:size(psdVals{i},2),badTrialsList{i})),2);
+            [psdVals{i},freqVals{i},tfPower{i},timeValsTF{i},freqValsTF{i}] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList);
+            meanPSDVals{i} = mean(psdVals{i}(:,setdiff(1:size(psdVals{i},2),badTrialsList{i})),2);  
+            meanTFVals{i}  = mean(tfPower{i}(:,:,setdiff(1:size(tfPower{i},2),badTrialsList{i})),3);  % removing the bad trials
+            
+            % get alpha, slowGamma and fastGamma vals:
+            alphaPos = intersect(find(freqValsTF{1}>=freqList{1}(1)),find(freqValsTF{1}<=freqList{1}(2)));
+            sgPos = intersect(find(freqValsTF{1}>=freqList{2}(1)),find(freqValsTF{1}<=freqList{2}(2)));
+            fgPos = intersect(find(freqValsTF{3}>=freqList{1}(1)),find(freqValsTF{1}<=freqList{3}(2)));
+            
+            meanAlpha{i} = mean(meanTFVals{i}(:,alphaPos),2);
+            meanSG{i} = mean(meanTFVals{i}(:,sgPos),2);
+            meanFG{i} = mean(meanTFVals{i}(:,fgPos),2);             
+            
+%             timeValsTFadj = timeVec(end)+timeValsTF{1};
+%             timeVec = [timeVec timeValsTFadj];
+         
+            if i>1
+               indVec{i} = length(timeValsTF{1})*(i-1)+1:(length(timeValsTF{1})*i);
+            else
+               indVec{i} = 1:length(timeValsTF{1});
+            end
         end
     end
     
-    for i=1:numProtocols
+ 
+    for i=1:numProtocols  %% plotting
         
         % Time-frequency plots
         if ~isempty(psdVals{i})
@@ -140,7 +171,7 @@ for g=1:numGroups
             if plotRawTFFlag
                 pcolor(hTF(g,i),1:numTrials,freqVals{i},(psdVals{i}));
             else
-                bl = repmat(meanPSDVals{1},1,numTrials);
+                bl = repmat(meanPSDVals{1},1,numTrials); % including all the trials
                 pcolor(hTF(g,i),1:numTrials,freqVals{i},(psdVals{i})-bl);
             end
             
@@ -149,8 +180,12 @@ for g=1:numGroups
             ylim(hTF(g,i),freqRangeHz);
             
             hold(hTF(g,i),'on');
-            plot(hTF(g,i),badTrialsList{i},freqRangeHz(2)-1,'k.');
-            text(1,freqRangeHz(2)-5,['N=' num2str(numGoodElectrodesList(i))],'parent',hTF(g,i));
+            if ~isempty(badTrialsList{i})
+                plot(hTF(g,i),badTrialsList{i},freqRangeHz(2)-1,'k.');
+                text(1,freqRangeHz(2)-5,['N=' num2str(numGoodElectrodesList(i))],'parent',hTF(g,i));
+            else
+                text(1,freqRangeHz(2)-5,['N=' num2str(numGoodElectrodesList(i))],'parent',hTF(g,i));
+            end
         end
         
         if (i==1 && g<numGroups)
@@ -160,6 +195,13 @@ for g=1:numGroups
         elseif (i>1 && g==numGroups)
             set(hTF(g,i),'YTickLabel',[]); % only remove y label
         end
+        
+        if g==6
+%             xIndex = xIndex(end)+1:length(timeValsTF{1});
+            plot(hPowerVsTime(1),indVec{i},meanAlpha{i},'color',colorNames{i});  set(hPowerVsTime(1),'XTickLabel',[]); hold(hPowerVsTime(1),'on');
+            plot(hPowerVsTime(2),indVec{i},meanSG{i},'color',colorNames{i});     set(hPowerVsTime(2),'XTickLabel',[]); hold(hPowerVsTime(2),'on');
+            plot(hPowerVsTime(3),indVec{i},meanFG{i},'color',colorNames{i});     hold(hPowerVsTime(3),'on');
+        end        
     end
     
     ylabel(hTF(g,1),groupNameList{g});
@@ -189,7 +231,14 @@ for g=1:numGroups
         if g==1
             title(hPSD(g,i),comparePSDConditionStr{i});
         end
-    end
+        
+%         if g==6 % plot the power vs time for alpha,sg and fg     
+%             plot(hPowerVsTime(1),cat(1,meanAlpha{:}));  set(hPowerVsTime(1),'XTickLabel',[]);
+%             plot(hPowerVsTime(2),cat(1,meanSG{:}));     set(hPowerVsTime(2),'XTickLabel',[]);
+%             plot(hPowerVsTime(3),cat(1,meanFG{:}));
+%         end                
+    end  
+    
 end
 
 for i=1:numProtocols
@@ -197,7 +246,9 @@ for i=1:numProtocols
 end
 end
 
-function [psd,freqVals] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList)
+function [psd,freqVals,tfPower,timeValsTF,freqValsTF] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,TFFlag)
+
+if ~exist('TFFlag','var') || isempty(TFFlag); TFFlag= 1; end
 
 timeRange = [0.25 1.25];
 tapers = [1 1];
@@ -222,13 +273,30 @@ else
     params.pad      = -1;
     params.Fs       = Fs;
     params.fpass    = freqRange;
-    params.trialave = 0;
+%     if TFFlag;      params.trialave = 1;     else;     params.trialave = 0;     end
+   % Parameters for TF
+   tfPowerTMP = [];
+   timeValsTF = [];
+   freqValsTF = [];
+   winSize = 0.25;
+   winStep = 0.025; %4Hz resolution
+   movingwin = [winSize winStep];
     
-    for i=1:numElectrodes
-        e = load(fullfile(folderSegment,'LFP',['elec' num2str(electrodeList(i)) '.mat']));
-        [psdTMP(i,:,:),freqVals] = mtspectrumc(e.analogData(:,goodTimePos)',params); %#ok<AGROW>
-    end
-    psd = log10(squeeze(mean(psdTMP,1)));
+   for i=1:numElectrodes
+       e = load(fullfile(folderSegment,'LFP',['elec' num2str(electrodeList(i)) '.mat']));
+       params.trialave = 0; 
+       [psdTMP(i,:,:),freqVals] = mtspectrumc(e.analogData(:,goodTimePos)',params); %#ok<AGROW>
+       %         [psdTMP(i,:,:),freqVals] = mtspectrumc(e.analogData(:,goodTimePos)',params); %#ok<AGROW>
+       % If TFFlag is ON;
+       if TFFlag
+           params.trialave = 0;               
+           [tfPowerTMP(i,:,:,:),timeValsTF0,freqValsTF] = mtspecgramc(e.analogData(:,goodTimePos)',movingwin,params);
+           timeValsTF = timeValsTF0 + timeRange(1);
+       end
+   end
+    psd = log10(squeeze(mean(psdTMP,1)));  % avergage across electrode, then taking log (SR)
+%     psd = mean(log10(psdTMP),1);  %
+    tfPower = squeeze(mean(tfPowerTMP,1));
 end
 end
 function displayBadElecs(hBadElectrodes,subjectName,expDate,protocolName,folderSourceString,gridType,capType,badTrialNameStr,badElectrodes,hStats)
