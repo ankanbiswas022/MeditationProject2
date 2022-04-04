@@ -17,7 +17,7 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Fixed variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 gridType = 'EEG';
-capType = 'actiCap64_2019';
+capType = 'actiCap64_UOL';
 allElectrodeList = 1:64;
 
 protocolNameList = [{'EO1'}     {'EC1'}     {'G1'}      {'M1'}          {'G2'}      {'EO2'}     {'EC2'}     {'M2'}];
@@ -327,7 +327,7 @@ for i=1:numProtocols
     psdDataThisProtocol = psdAcrossElcAccProtocol{i};
     chMeanAlphaThisElec=[];
     chMeanSGThisElec =[];
-      chMeanFGThisElec = [];
+    chMeanFGThisElec = [];
     noseDir = '+X';
     
     for e=1:numElectrodes
@@ -352,7 +352,7 @@ for i=1:numProtocols
                
     end
     
-    %plot topoplot
+    % plot topoplot
     x = load([capType 'Labels.mat']); montageLabels = x.montageLabels(:,2);
     x = load([capType '.mat']); montageChanlocs = x.chanlocs;
     axes(hTopo(1,i)); topoplot(chMeanAlphaThisElec,montageChanlocs); caxis([-15 15]);
@@ -446,6 +446,7 @@ else
     end
 end
 
+%% 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Topoplot %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 axes(hBadElectrodes);
 electrodeSize = 5;
