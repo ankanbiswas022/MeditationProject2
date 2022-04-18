@@ -111,6 +111,13 @@ for i=1:length(protocolNameList)
     compareBPWithML(goodStimTimes,goodStimTimesML);
     eyeRangeMS = (timeStartFromBaseLine + [0 deltaT])*1000;     
     
+    % generating the parameter combinations
+    conditionsArray = MLTrialRecord.ConditionsPlayed;    
+    %getStimResultsML(folderExtract,conditionsArray); 
+    getStimResultsML_Meditation(MLData,folderExtract,conditionsArray,protocolName);
+    goodStimNums = 1:length(conditionsArray);
+    getDisplayCombinationsGRF(folderExtract,goodStimNums); % Generates parameterCombinations
+    
     % Save useful data in folderExtract
     makeDirectory(folderExtract);
     save(fullfile(folderExtract,'goodStimCodeNums.mat'),'goodStimCodeNums','goodStimTimes');
@@ -139,7 +146,7 @@ dTBP = diff(goodStimTimes);
 dTML = diff(goodStimTimesML);
 maxD = 1000*max(abs(dTBP-dTML));
 
-maxTol = 10; % Must be within this limit
+maxTol = 30; % Must be within this limit
 if maxD>maxTol
     plot(dTBP,'b'); hold on; plot(dTML,'r');
     error(['max difference in timing: ' num2str(maxD) 'exceeds maxTolerence of ' num2str(maxTol) ' ms']);

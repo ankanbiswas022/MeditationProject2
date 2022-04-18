@@ -4,12 +4,13 @@
 % ToDo
 % 1. Option to use unipolar or bipolar referencing
 
-function displayMeditationDataV3(subjectName,expDate,folderSourceString,badTrialNameStr,badElectrodeRejectionFlag,plotRawTFFlag)
+function displayMeditationDataV3(subjectName,expDate,folderSourceString,badTrialNameStr,badElectrodeRejectionFlag,plotRawTFFlag,refScheme)
 
 if ~exist('folderSourceString','var');        folderSourceString=[];        end
 if ~exist('badElectrodeList','var');          badTrialNameStr='_v5';        end
 if ~exist('badElectrodeRejectionFlag','var'); badElectrodeRejectionFlag=2;  end
 if ~exist('plotRawTFFlag','var');             plotRawTFFlag=0;              end
+if ~exist('refScheme','var');                 refScheme=1;              end
 
 if isempty(folderSourceString)
     folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
@@ -18,7 +19,13 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Fixed variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 gridType = 'EEG';
 capType = 'actiCap64_UOL';
-allElectrodeList = 1:64;
+
+if refScheme == 2
+    load(['bipChInfo' capType '.mat']); 
+    allElectrodeList = 1:length(bipolarLocs);    
+else
+    allElectrodeList = 1:64;
+end
 
 protocolNameList = [{'EO1'}     {'EC1'}     {'G1'}      {'M1'}          {'G2'}      {'EO2'}     {'EC2'}     {'M2'}];
 colorNames       = [{[0.9 0 0]} {[0 0.9 0]} {[0 0 0.9]} {[0.7 0.7 0.7]} {[0 0 0.3]} {[0.3 0 0]} {[0 0.3 0]} {[0.3 0.3 0.3]}];
@@ -43,7 +50,7 @@ freqList{3} = [36 66]; freqListNames{3} = 'FG';
 numFreqRanges = length(freqList);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-[~,~,~,electrodeGroupList,groupNameList,highPriorityElectrodeNums] = electrodePositionOnGrid(1,gridType,[],capType);
+[~,~,~,electrodeGroupList,groupNameList,highPriorityElectrodeNums] = electrodePositionOnGrid(1,gridType,[],capType,refScheme);
 numGroups = length(electrodeGroupList);
 electrodeGroupList{numGroups+1} = highPriorityElectrodeNums;
 groupNameList{numGroups+1} = 'highPriority';
@@ -148,7 +155,7 @@ for g=1:numGroups %for all the different groups of the electrode
         
         if ~isempty(electrodeList)
             protocolName = protocolNameList{i};
-            [psdVals{i},freqVals{i},psdAcrossElc] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList);
+            [psdVals{i},freqVals{i},psdAcrossElc] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,refScheme,capType);
             
             meanPSDVals{i} = mean(psdVals{i}(:,setdiff(1:size(psdVals{i},2),badTrialsList{i})),2);      % psd across good trials
             %             meanTFVals{i}  = mean(tfPower{i}(:,:,setdiff(1:size(tfPower{i},2),badTrialsList{i})),3);  % removing the bad trials
@@ -157,7 +164,7 @@ for g=1:numGroups %for all the different groups of the electrode
             alphaPos = intersect(find(freqVals{1}>=freqList{1}(1)),find(freqVals{1}<=freqList{1}(2)));
             sgPos    = intersect(find(freqVals{1}>=freqList{2}(1)),find(freqVals{1}<=freqList{2}(2)));
             fgPos    = intersect(find(freqVals{1}>=freqList{3}(1)),find(freqVals{1}<=freqList{3}(2)));
-            
+            fgPos=fgPos(fgPos~=(find(freqVals{1}==50)));
             
             if g==6 %only for the highPriority ones
                 meanPSDValsCurrSeg=cell(1,5);
@@ -313,7 +320,7 @@ psdAcrossElcAccProtocol = cell(1,numProtocols);
 
 for i=1:numProtocols   
     protocolName = protocolNameList{i};
-    [psd,freqVals,psdAcrossElc] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,allElectrodeList);   
+    [psd,freqVals,psdAcrossElc] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,allElectrodeList,refScheme,capType);   
     psdAcrossElcAccProtocol{i}= psdAcrossElc;
     flag=10;    
 end
@@ -322,6 +329,7 @@ numElectrodes = length(allElectrodeList);
 alphaPos = intersect(find(freqVals>=freqList{1}(1)),find(freqVals<=freqList{1}(2)));
 sgPos    = intersect(find(freqVals>=freqList{2}(1)),find(freqVals<=freqList{2}(2)));
 fgPos    = intersect(find(freqVals>=freqList{3}(1)),find(freqVals<=freqList{3}(2)));
+fgPos    = fgPos(fgPos~=(find(freqVals==50)));
 
 for i=1:numProtocols
     psdDataThisProtocol = psdAcrossElcAccProtocol{i};
@@ -363,7 +371,7 @@ end
 
 end
 
-function [psd,freqVals,psdAcrossElc] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList)
+function [psd,freqVals,psdAcrossElc] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,refScheme,capType)
 
 % if ~exist('TFFlag','var') || isempty(TFFlag); TFFlag= 1; end
 
@@ -400,7 +408,18 @@ else
     %    movingwin = [winSize winStep];
     
     for i=1:numElectrodes
-        e = load(fullfile(folderSegment,'LFP',['elec' num2str(electrodeList(i)) '.mat']));
+        if refScheme==2
+           load(['bipChInfo' capType '.mat']); %loads the bipolar unipolar list to the workspace.
+           % find the corresponding unipolar electrodes 
+           analogElecs = bipolarLocs(electrodeList(i),:);           
+           % load the .mat lfp file for the two electrode
+           e1 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(1)) '.mat']));
+           e2 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(2)) '.mat']));           
+           % substract and put this in the e 
+           e.analogData = e1.analogData-e2.analogData; %updated e for the bipolar
+        else
+           e = load(fullfile(folderSegment,'LFP',['elec' num2str(electrodeList(i)) '.mat']));
+        end                
         params.trialave = 0;
         [psdTMP(i,:,:),freqVals] = mtspectrumc(e.analogData(:,goodTimePos)',params); %#ok<AGROW>
         %         [psdTMP(i,:,:),freqVals] = mtspectrumc(e.analogData(:,goodTimePos)',params); %#ok<AGROW>
@@ -526,5 +545,3 @@ for i=1:numElectrodeGroups
 end
 
 end
-
-

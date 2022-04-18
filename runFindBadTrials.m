@@ -1,13 +1,13 @@
 
 [subjectNames,expDates] = subjectDatabaseMeditationProject2;
-folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
-% folderSourceString = 'D:\Projects\MeditationProjects\MeditationProject2';
+% folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
+folderSourceString = 'D:\Projects\MeditationProjects\MeditationProject2';
 
-segmentTheseIndices = 3;
+segmentTheseIndices = 28;
 gridType = 'EEG';
 nonEEGElectrodes = 65:80;
 impedanceTag = '_Impedance_Start'; 
-capType = 'actiCap64_2019';
+capType = 'actiCap64_UOL';
 saveDataFlag = 1;
 badTrialNameStr = '_v5';
 displayResultsFlag = 0;
