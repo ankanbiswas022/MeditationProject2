@@ -1,5 +1,6 @@
-% subjectName='008RS';
-% expDate='100122';
+% this scripts aims to save all the necesary variables for the fine tune 
+% this would remove all the bad trials from saving
+% but would save all the electrodes
 clear; close all
 
 [subjectNames,expDates] = subjectDatabaseMeditationProject2;
@@ -8,9 +9,9 @@ badElectrodeList=[];
 plotRawTFFlag=[];
 badTrialNameStr='_v5'; 
 badElectrodeRejectionFlag=1;
-saveFileFlag = 1;
+saveFileFlag = 0;
 refScheme = 1; % 2 for bipolar
-saveDataIndividualSubjectsFlag = 0; % if the flag is on the script would save the data for the given subject list
+saveDataIndividualSubjectFlag = 1; % if the flag is on the script would save the data for the given subject list
 % this could not have been included in the segmentAndSaveData because
 timeAvgFlag = 1; 
 tfFlag = 1; 
@@ -19,12 +20,10 @@ tfFlag = 1;
 % displayMeditationData(subjectName,expDate,folderSourceString,badTrialNameStr,badElectrodeRejectionFlag,plotRawTFFlag)
 
 % segmentTheseIndices = [3:17 19:25];
-segmentTheseIndices = 13;
+segmentTheseIndices = 1; %in future, good subject list would come here
 
 for i=1:length(segmentTheseIndices)
-    if ~saveDataIndividualSubjectsFlag     
-        h=figure(segmentTheseIndices(i)+1); 
-    end
+    h=figure(segmentTheseIndices(i));
     
     subjectName = subjectNames{segmentTheseIndices(i)};
     expDate = expDates{segmentTheseIndices(i)};

@@ -25,7 +25,8 @@ if isempty(folderSourceString)
 end
 
 gridType = 'EEG';
-protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}];
+% protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}];
+protocolNameList = {'EC1'};
 
 timeStartFromBaseLine = -1.25; deltaT = 2.5;
 

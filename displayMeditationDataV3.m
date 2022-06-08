@@ -1,16 +1,32 @@
-% Displays data collected for the meditation project
-% badTrialRejectionFlag: 1: Don't reject badElectrodes, 2: reject badElectrodes for that protocol, 3: Reject badElectrodes of all protocols
+%% 
+% Displays data collected for the meditation project:
+% 
+% badTrialRejectionFlag: 1: Don't reject badElectrodes, 2: reject badElectrodes 
+% for that protocol, 3: Reject badElectrodes of all protocols
 
 % ToDo
-% 1. Option to use unipolar or bipolar referencing
+% 1. Option to use unipolar or bipolar referencing (done)
+% 2. Option to save the data for Individual subjects  (doing: target 190422,fullDay, target by firstHalf))
+% -  Add control for unipolar vs biPolar, first for unipolar followed by biPolar
+%    210422::(kept on hold for later; would first see what all
 
-function displayMeditationDataV3(subjectName,expDate,folderSourceString,badTrialNameStr,badElectrodeRejectionFlag,plotRawTFFlag,refScheme)
+%
+% 3. Option to add Summary plots (ToDoLater)
+% 3. Option to see TF plot (doing now 270422)
 
-if ~exist('folderSourceString','var');        folderSourceString=[];        end
-if ~exist('badElectrodeList','var');          badTrialNameStr='_v5';        end
-if ~exist('badElectrodeRejectionFlag','var'); badElectrodeRejectionFlag=2;  end
-if ~exist('plotRawTFFlag','var');             plotRawTFFlag=0;              end
-if ~exist('refScheme','var');                 refScheme=1;              end
+%% Main function (go to the next section for the dependent functions)
+
+function displayMeditationDataV3(subjectName,expDate,folderSourceString,badTrialNameStr,badElectrodeRejectionFlag,plotRawTFFlag,refScheme,trialAvgFlag,saveDataIndividualSubjectsFlag,tfFlag)
+
+if ~exist('folderSourceString','var');              folderSourceString=[];                          end
+if ~exist('badElectrodeList','var');                badTrialNameStr='_v5';                          end
+if ~exist('badElectrodeRejectionFlag','var');       badElectrodeRejectionFlag=2;                    end
+if ~exist('plotRawTFFlag','var');                   plotRawTFFlag=0;                                end
+if ~exist('refScheme','var');                       refScheme=1;                                    end
+if ~exist('trialAvgFlag','var');                    trialAvgFlag =0;                                end
+if ~exist('saveDataIndividualSubjectsFlag','var');  saveDataIndividualSubjectsFlag=0;               end
+if ~exist('tfFlag','var');                          tfFlag=0;                                       end
+
 
 if isempty(folderSourceString)
     folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
@@ -21,8 +37,8 @@ gridType = 'EEG';
 capType = 'actiCap64_UOL';
 
 if refScheme == 2
-    load(['bipChInfo' capType '.mat']); 
-    allElectrodeList = 1:length(bipolarLocs);    
+    load(['bipChInfo' capType '.mat']);
+    allElectrodeList = 1:length(bipolarLocs);
 else
     allElectrodeList = 1:64;
 end
@@ -30,6 +46,8 @@ end
 protocolNameList = [{'EO1'}     {'EC1'}     {'G1'}      {'M1'}          {'G2'}      {'EO2'}     {'EC2'}     {'M2'}];
 colorNames       = [{[0.9 0 0]} {[0 0.9 0]} {[0 0 0.9]} {[0.7 0.7 0.7]} {[0 0 0.3]} {[0.3 0 0]} {[0 0.3 0]} {[0.3 0.3 0.3]}];
 numProtocols = length(protocolNameList);
+%% 
+% PSD comparisons between segments
 
 comparePSDConditions{1} = [1 6];
 comparePSDConditions{2} = [2 7];
@@ -55,35 +73,38 @@ numGroups = length(electrodeGroupList);
 electrodeGroupList{numGroups+1} = highPriorityElectrodeNums;
 groupNameList{numGroups+1} = 'highPriority';
 numGroups=numGroups+1;
+extraSubSegments = 4; % no of extra subgements within M1 and M2
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Set up plots %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-hBadElectrodes = getPlotHandles(1,numProtocols,[0.05 0.875 0.6 0.1],0.01,0.01,1);
+hBadElectrodes = getPlotHandles(1,numProtocols+extraSubSegments,[0.05 0.875 0.6 0.1],0.01,0.01,1);
 hBadElectrodes2 = getPlotHandles(1,4,[0.7 0.875 0.25 0.1],0.01,0.01,1);
 
-hTF = getPlotHandles(numGroups,numProtocols,[0.05 0.35 0.6 0.5],0.01,0.01,1);
+hTF = getPlotHandles(numGroups,numProtocols+extraSubSegments,[0.05 0.35 0.6 0.5],0.01,0.01,1);
 hPSD  = getPlotHandles(numGroups,numPSDComparisons,[0.7 0.35 0.25 0.5],0.01,0.01,1);
-hTopo = getPlotHandles(numFreqRanges,numProtocols,[0.05 0.05 0.6 0.25],0.01,0.01,1);
+hTopo = getPlotHandles(numFreqRanges,numProtocols+extraSubSegments,[0.05 0.05 0.6 0.25],0.01,0.01,1);
 hPowerVsTime = getPlotHandles(numFreqRanges,1,[0.7 0.05 0.25 0.25],0.01,0.01,1);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Ranges for plots %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 colormap jet;
-freqRangeHz = [0 60];
+freqRangeHz = [0 100];
 
 if plotRawTFFlag
     cLims = [-3 3];
 else
     %     cLims = [-1.5 1.5];
-    cLims = [-15 15];
+    cLims = [-5 5];
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % display bad electrodes for all protocols and also generate common bad electrodes
+% --- for saving the data this is not required as it is already beaing
+% saved when we run the badTrialCode:
+
 badTrialsList = cell(1,numProtocols);
 badElecList = cell(1,numProtocols);
 badElectrodes.badImpedanceElecs = [];
 badElectrodes.noisyElecs = [];
 badElectrodes.flatPSDElecs = [];
-
 for i=1:numProtocols
     protocolName=protocolNameList{i};
     badFileName = fullfile(folderSourceString,'data',subjectName,gridType,expDate,protocolName,'segmentedData',['badTrials' badTrialNameStr '.mat']);
@@ -95,8 +116,18 @@ for i=1:numProtocols
         badElectrodes.badImpedanceElecs = cat(1,badElectrodes.badImpedanceElecs,x.badElecs.badImpedanceElecs);
         badElectrodes.noisyElecs = cat(1,badElectrodes.noisyElecs,x.badElecs.noisyElecs);
         badElectrodes.flatPSDElecs = cat(1,badElectrodes.flatPSDElecs,x.badElecs.flatPSDElecs);
-        displayBadElecs(hBadElectrodes(i),subjectName,expDate,protocolName,folderSourceString,gridType,capType,badTrialNameStr);
-        title(hBadElectrodes(i),protocolNameList{i},'color',colorNames{i});
+        if i>4
+            j=i+2;
+            set(hBadElectrodes(5),'visible','off');
+            set(hBadElectrodes(6),'visible','off');
+            set(hBadElectrodes(11),'visible','off');
+            set(hBadElectrodes(12),'visible','off');
+            % also swicth off the axes
+        else
+            j=i;
+        end
+        displayBadElecs(hBadElectrodes(j),subjectName,expDate,protocolName,folderSourceString,gridType,capType,badTrialNameStr);
+        title(hBadElectrodes(j),protocolNameList{i},'color',colorNames{i});
     else
         badTrialsList{i}=[];
         badElecList{i} = [];
@@ -110,8 +141,7 @@ displayBadElecs(hBadElectrodes2(1),subjectName,expDate,protocolName,folderSource
 
 % displayElectrodeGroups
 showElectrodeGroups(hBadElectrodes2(3:4),capType,electrodeGroupList,groupNameList);
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%Topoplot%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Get Data
 for g=1:numGroups %for all the different groups of the electrode
     
@@ -132,8 +162,6 @@ for g=1:numGroups %for all the different groups of the electrode
     %     meanFG = cell(1,numProtocols);
     %
     %     indVec = cell(1,numProtocols); %initializing with numProtocols (as of now)
-    
-    %%
     meanAlphaCurrSeg = zeros(8,5);
     meanSGCurrSeg    = zeros(8,5);
     meanFGCurrSeg    = zeros(8,5);
@@ -155,12 +183,13 @@ for g=1:numGroups %for all the different groups of the electrode
         
         if ~isempty(electrodeList)
             protocolName = protocolNameList{i};
-            [psdVals{i},freqVals{i},psdAcrossElc] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,refScheme,capType);
+            badTrials = badTrialsList{i};
+            [psdVals{i},freqVals{i},psdAcrossElc,tfPower{i},timeValsTF,freqValsTF] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,refScheme,capType,trialAvgFlag,tfFlag,badTrials);
             
             meanPSDVals{i} = mean(psdVals{i}(:,setdiff(1:size(psdVals{i},2),badTrialsList{i})),2);      % psd across good trials
             %             meanTFVals{i}  = mean(tfPower{i}(:,:,setdiff(1:size(tfPower{i},2),badTrialsList{i})),3);  % removing the bad trials
-            
-            %%
+% segmenting and getting the data
+
             alphaPos = intersect(find(freqVals{1}>=freqList{1}(1)),find(freqVals{1}<=freqList{1}(2)));
             sgPos    = intersect(find(freqVals{1}>=freqList{2}(1)),find(freqVals{1}<=freqList{2}(2)));
             fgPos    = intersect(find(freqVals{1}>=freqList{3}(1)),find(freqVals{1}<=freqList{3}(2)));
@@ -184,9 +213,8 @@ for g=1:numGroups %for all the different groups of the electrode
                 end
             end
             
-            %%
-            %             timeValsTFadj = timeVec(end)+timeValsTF{1};
-            %             timeVec = [timeVec timeValsTFadj];
+            %     timeValsTFadj = timeVec(end)+timeValsTF{1};
+            %      timeVec = [timeVec timeValsTFadj]; %dd
             
             %             if i>1
             %                indVec{i} = length(timeValsTF{1})*(i-1)+1:(length(timeValsTF{1})*i);
@@ -195,6 +223,10 @@ for g=1:numGroups %for all the different groups of the electrode
             %             end
         end
     end
+    
+    
+% Now plotting the data below:
+
     
     timeVecIni=1;
     
@@ -209,16 +241,71 @@ for g=1:numGroups %for all the different groups of the electrode
         % Time-frequency plots
         if ~isempty(psdVals{i})
             numTrials = size(psdVals{i},2);
-            if plotRawTFFlag
+            if plotRawTFFlag % rawTF plots Showing individual Trials
                 pcolor(hTF(g,i),1:numTrials,freqVals{i},(psdVals{i}));
-            else
+                shading(hTF(g,i),'interp');
+                caxis(hTF(g,i),cLims);
+                ylim(hTF(g,i),freqRangeHz);
+            elseif tfFlag
+                dimForTrials = 3; %trials are on the third dimention
+                blTfEOAccTrials=mean(tfPower{1}(:,:,setdiff(1:size(tfPower{1},3),badTrialsList{i})),dimForTrials); % give the dimentions for the trials ,TA
+                blTF = conv2Log(blTfEOAccTrials);
+                if any(strcmp(protocolNameList(i),{'EO1','EC1','G1'})) % plot as it is after avergaing across trials
+                    % plotting index does not change
+                    % select only Good trials out of all the trials
+                    % ex:  meanPSDVals{i} = mean(psdVals{i}(:,setdiff(1:size(psdVals{i},2),badTrialsList{i})),2);      % psd across good trials
+                    currSegTFAccTrials = mean(tfPower{i}(:,:,setdiff(1:size(tfPower{1},3),badTrialsList{i})),dimForTrials);
+                    pcolor(hTF(g,i),timeValsTF,freqValsTF,10*(log10((currSegTFAccTrials))-blTF)');
+                    shading(hTF(g,i),'interp');
+                    caxis(hTF(g,i),cLims);
+                    ylim(hTF(g,i),freqRangeHz);
+                elseif any(strcmp(protocolNameList(i),{'M1','M2'})) % change the index and plot segment wise. TA
+                    if any(strcmp(protocolNameList(i),{'M1'}))
+                        j=i;
+                        modIndexForMedSeg = j;
+                    else
+                        j=10;
+                        modIndexForMedSeg = j;
+                    end
+                    startIndTrial=1;
+                    for medSegIndex=1:3
+                        currSegTFAllTrials = tfPower{i}(:,:,startIndTrial:(startIndTrial+119));
+                        currSegTFAccTrials = mean(currSegTFAllTrials,dimForTrials);
+                        pcolor(hTF(g,modIndexForMedSeg),timeValsTF,freqValsTF,10*(log10((currSegTFAccTrials))-blTF)');
+                        shading(hTF(g,modIndexForMedSeg),'interp');
+                        caxis(hTF(g,modIndexForMedSeg),cLims);
+                        ylim(hTF(g,modIndexForMedSeg),freqRangeHz);
+                        modIndexForMedSeg=j + medSegIndex;
+                        startIndTrial = startIndTrial+120;
+                        if g==1 && medSegIndex==3  && any(strcmp(protocolNameList(i),{'M2'}))
+                            colorBarAx=colorbar(hTF(g,modIndexForMedSeg-1));
+                            colorBarAx.Position(1)=colorBarAx.Position(1)+0.025;
+                        end
+                    end
+                    
+                elseif any(strcmp(protocolNameList(i),{'G2','EO2','EC2'})) % change the index and plot segment wise. TA
+                    modIndexForAFterMedSeg = i+2;
+                    % plotting index changes
+                    % select only Good trials out of all the trials
+                    % ex:  meanPSDVals{i} = mean(psdVals{i}(:,setdiff(1:size(psdVals{i},2),badTrialsList{i})),2);      % psd across good trials
+                    currSegTFAccTrials = mean(tfPower{i}(:,:,setdiff(1:size(tfPower{1},3),badTrialsList{i})),dimForTrials);
+                    pcolor(hTF(g,modIndexForAFterMedSeg),timeValsTF,freqValsTF,10*(log10((currSegTFAccTrials))-blTF)');
+                    shading(hTF(g,modIndexForAFterMedSeg),'interp');
+                    caxis(hTF(g,modIndexForAFterMedSeg),cLims);
+                    ylim(hTF(g,modIndexForAFterMedSeg),freqRangeHz);
+                end
+                
+            else % change in
                 bl = repmat(meanPSDVals{1},1,numTrials); % including all the trials
                 pcolor(hTF(g,i),1:numTrials,freqVals{i},10*(log10((psdVals{i}))-log10(bl)));
+                shading(hTF(g,i),'interp');
+                caxis(hTF(g,i),cLims);
+                ylim(hTF(g,i),freqRangeHz);
             end
             
-            shading(hTF(g,i),'interp');
-            caxis(hTF(g,i),cLims);
-            ylim(hTF(g,i),freqRangeHz);
+            %             shading(hTF(g,i),'interp');
+            %             caxis(hTF(g,i),cLims);
+            %             ylim(hTF(g,i),freqRangeHz);
             
             hold(hTF(g,i),'on');
             if ~isempty(badTrialsList{i})
@@ -273,8 +360,8 @@ for g=1:numGroups %for all the different groups of the electrode
     
     ylabel(hTF(g,1),groupNameList{g});
     xlabel(hPowerVsTime(3),'Time(min)');
-%     ylabel(hPowerVsTime(1),'Alpha'); hold(hPowerVsTime(3),'on')
-%     ylabel(hPowerVsTime(2),'Slow gamma'); hold(hPowerVsTime(3),'on')
+    %     ylabel(hPowerVsTime(1),'Alpha'); hold(hPowerVsTime(3),'on')
+    %     ylabel(hPowerVsTime(2),'Slow gamma'); hold(hPowerVsTime(3),'on')
     ylabel(hPowerVsTime(3),'Power'); hold(hPowerVsTime(3),'on');
     
     % meanPSD Plots
@@ -284,7 +371,7 @@ for g=1:numGroups %for all the different groups of the electrode
             if plotRawTFFlag
                 plot(hPSD(g,i),freqVals{conditionNum},meanPSDVals{conditionNum},'color',colorNames{conditionNum});
             else
-%                 bl = repmat(meanPSDVals{1},1,numTrials); % including all the trials
+                % bl = repmat(meanPSDVals{1},1,numTrials); % including all the trials
                 plot(hPSD(g,i),freqVals{conditionNum},10*(log10(meanPSDVals{conditionNum})-log10(meanPSDVals{1})),'color',colorNames{conditionNum});
             end
             hold(hPSD(g,i),'on');
@@ -312,17 +399,16 @@ end
 for i=1:numProtocols
     xlabel(hTF(numGroups,i),'TrialNum');
 end
-
 %% topolot
 
 %step 1: get the data for topoplot
 psdAcrossElcAccProtocol = cell(1,numProtocols);
 
-for i=1:numProtocols   
+for i=1:numProtocols
     protocolName = protocolNameList{i};
-    [psd,freqVals,psdAcrossElc] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,allElectrodeList,refScheme,capType);   
-    psdAcrossElcAccProtocol{i}= psdAcrossElc;
-    flag=10;    
+    [psd,freqVals,psdAcrossElc] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,allElectrodeList,refScheme,capType,trialAvgFlag,tfFlag,badTrials);
+    psdAcrossElcAccProtocol{i}  = psdAcrossElc;
+    flag=10;
 end
 
 numElectrodes = length(allElectrodeList);
@@ -357,25 +443,55 @@ for i=1:numProtocols
         chMeanAlphaThisElec(e,1) = 10*(meanAlphaThisElec-BLmeanAlphaThisElec) ;
         chMeanSGThisElec(e,1) = 10*(meanSGThisElec- BLmeanSGThisElec) ;
         chMeanFGThisElec(e,1) = 10*(meanFGThisElec - BLmeanFGThisElec) ;
-               
+        
     end
     
     % plot topoplot
     x = load([capType 'Labels.mat']); montageLabels = x.montageLabels(:,2);
     x = load([capType '.mat']); montageChanlocs = x.chanlocs;
-    axes(hTopo(1,i)); topoplot(chMeanAlphaThisElec,montageChanlocs); caxis([-15 15]);
-    axes(hTopo(2,i));topoplot(chMeanSGThisElec,montageChanlocs); caxis([-15 15]);
-    axes(hTopo(3,i));topoplot(chMeanFGThisElec,montageChanlocs); caxis([-15 15]);
+    
+    if i>4
+        j=i+2;  
+        % also swicth off the axes
+    else
+        j=i;
+    end
+    axes(hTopo(1,j)); topoplot(chMeanAlphaThisElec,montageChanlocs); caxis([-5 5]);
+    axes(hTopo(2,j));topoplot(chMeanSGThisElec,montageChanlocs); caxis([-5 5]);
+    axes(hTopo(3,j));topoplot(chMeanFGThisElec,montageChanlocs); caxis([-5 5]);
+    set(hTopo(5),'visible','off');
+    set(hTopo(6),'visible','off');
+    set(hTopo(11),'visible','off');
+    set(hTopo(12),'visible','off');
 end
-
-
 end
+%% Dependent functions
+% 
+% 
+% %inputs:
+% 
+% 
+% 
+% % outputs:
+% 
+% psd: 
+% 
+% freVals
+% 
+% psdAllElec
+% 
+% tfPower
+% 
+% timeValsTF
+% 
+% freqValsTF
 
-function [psd,freqVals,psdAcrossElc] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,refScheme,capType)
+function [psd,freqVals,psdAllElc,tfPower,timeValsTF,freqValsTF] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,refScheme,capType,trialAvgFlag,tfFlag,badTrials)
 
-% if ~exist('TFFlag','var') || isempty(TFFlag); TFFlag= 1; end
+if ~exist('TFFlag','var') || isempty(tfFlag); tfFlag= 1; end
+if ~exist('badTrials','var') || isempty(tfFlag); badTrials= []; end
 
-timeRange = [0.25 1.25];
+timeRange = [-0.25 1.25];
 tapers = [1 1];
 freqRange = [0 100];
 
@@ -398,47 +514,58 @@ else
     params.pad      = -1;
     params.Fs       = Fs;
     params.fpass    = freqRange;
-    %     if TFFlag;      params.trialave = 1;     else;     params.trialave = 0;     end
+    
+    if trialAvgFlag
+        params.trialave = 1;
+    else
+        params.trialave = 0;
+    end
+    
     % Parameters for TF
     %    tfPowerTMP = [];
     %    timeValsTF = [];
     %    freqValsTF = [];
-    %    winSize = 0.25;
-    %    winStep = 0.025; %4Hz resolution
-    %    movingwin = [winSize winStep];
+    
+    winSize = 0.25;
+    winStep = 0.025; %4Hz resolution
+    movingwin = [winSize winStep];
     
     for i=1:numElectrodes
         if refScheme==2
-           load(['bipChInfo' capType '.mat']); %loads the bipolar unipolar list to the workspace.
-           % find the corresponding unipolar electrodes 
-           analogElecs = bipolarLocs(electrodeList(i),:);           
-           % load the .mat lfp file for the two electrode
-           e1 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(1)) '.mat']));
-           e2 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(2)) '.mat']));           
-           % substract and put this in the e 
-           e.analogData = e1.analogData-e2.analogData; %updated e for the bipolar
-        else
-           e = load(fullfile(folderSegment,'LFP',['elec' num2str(electrodeList(i)) '.mat']));
-        end                
-        params.trialave = 0;
+            load(['bipChInfo' capType '.mat']); %loads the bipolar unipolar list to the workspace.
+            % find the corresponding unipolar electrodes
+            analogElecs = bipolarLocs(electrodeList(i),:);
+            % load the .mat lfp file for the two electrode
+            e1 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(1)) '.mat']));
+            e2 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(2)) '.mat']));
+            % substract and put this in the e
+            e.analogData = e1.analogData-e2.analogData; %updated e for the bipolar
+        else %default: uniPolar
+            e = load(fullfile(folderSegment,'LFP',['elec' num2str(electrodeList(i)) '.mat']));
+        end
+        params.trialave = 0;  % issue_tbfAB
         [psdTMP(i,:,:),freqVals] = mtspectrumc(e.analogData(:,goodTimePos)',params); %#ok<AGROW>
         %         [psdTMP(i,:,:),freqVals] = mtspectrumc(e.analogData(:,goodTimePos)',params); %#ok<AGROW>
         % If TFFlag is ON;
         %        if TFFlag
         %            params.trialave = 0;
-        %            [tfPowerTMP(i,:,:,:),timeValsTF0,freqValsTF] = mtspecgramc(e.analogData(:,goodTimePos)',movingwin,params);
-        %            timeValsTF = timeValsTF0 + timeRange(1);
+        params.trialave = 0;  % issue_tbfAB [Not averaging across trials]
+        %         [tfPowerTM(i,:,:,:),timeValsTF0,freqValsTF] = mtspecgramc(e.analogData(setdiff(1:size(e.analogData,1),badTrials),goodTimePos)',movingwin,params);
+        [tfPowerTMP(i,:,:,:),timeValsTF0,freqValsTF] = mtspecgramc(e.analogData(:,goodTimePos)',movingwin,params); % for all the trials
+        timeValsTF = timeValsTF0 + timeRange(1);
         %        end
     end
     
-    psd = squeeze(mean(psdTMP,1)); %across Electrode pds
-    psdAcrossElc = psdTMP;
+    psd = squeeze(mean(psdTMP,1)); % across Electrode psd
+    psdAllElc = psdTMP;
     
     %     psd = log10(squeeze(mean(psdTMP,1)));  % avergage across electrode, then taking log (SR)
     %     psd = mean(log10(psdTMP),1);  %
-    %     tfPower = squeeze(mean(tfPowerTMP,1));
+    tfPower = squeeze(mean(tfPowerTMP,1)); % avergae across electrodes. Already the good electrodes were selected.
 end
 end
+
+%%-------------------------------------------------------------------------------------------------------------------------------------------------------
 function displayBadElecs(hBadElectrodes,subjectName,expDate,protocolName,folderSourceString,gridType,capType,badTrialNameStr,badElectrodes,hStats)
 
 if ~exist('gridType','var');        gridType = 'EEG';                   end
@@ -464,8 +591,6 @@ else
         disp('Montage labels match with channel labels in badTrials');
     end
 end
-
-%% 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Topoplot %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 axes(hBadElectrodes);
 electrodeSize = 5;

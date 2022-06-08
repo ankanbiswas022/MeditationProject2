@@ -1,10 +1,10 @@
 % runSegmentAndSaveData
 
 [subjectNames,expDates] = subjectDatabaseMeditationProject2;
-folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
-% folderSourceString = 'D:\Projects\MeditationProjects\MeditationProject2';
+% folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
+folderSourceString = 'D:\Projects\MeditationProjects\MeditationProject2';
 
-segmentTheseIndices = 3;
+segmentTheseIndices = 43;
 gridType = 'EEG'; 
 capType = 'actiCap64_2019';
 impedanceTag = '_Impedance_Start'; 
