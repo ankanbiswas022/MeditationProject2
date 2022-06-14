@@ -1,9 +1,10 @@
 
-function     dispBadElecTrialsAcrossProtocols(subjectName,expDate,folderSourceString,badTrialNameStr) %working on this
+function  [numBadElecs,numBadElecsGroupWise] =  dispBadElecTrialsAcrossProtocols(subjectName,expDate,folderSourceString,badTrialNameStr,individualSubjectFigureFlag) %working on this
  %working on this
 
 if ~exist('folderSourceString','var');              folderSourceString=[];                          end
 if ~exist('badElectrodeList','var');                badTrialNameStr='_v5';                          end
+if ~exist('individualSubjectFigureFlag','var')      individualSubjectFigureFlag = 0;                end
 % if ~exist('badElectrodeRejectionFlag','var');       badElectrodeRejectionFlag=2;                    end
 % if ~exist('plotRawTFFlag','var');                   plotRawTFFlag=0;                                end
 % if ~exist('refScheme','var');                       refScheme=1;                                    end
@@ -28,6 +29,11 @@ protocolTrialNums = [120 120 120 360 120 120 120 360];
 colorNames       = [{[0.9 0 0]} {[0 0.9 0]} {[0 0 0.9]} {[0.7 0.7 0.7]} {[0 0 0.3]} {[0.3 0 0]} {[0 0.3 0]} {[0.3 0.3 0.3]}];
 numProtocols = length(protocolNameList);
 
+%%%electrode group list
+[~,~,~,electrodeGroupList,groupNameList,highPriorityElectrodeNums] = electrodePositionOnGrid(64,'EEG',subjectName,6);
+    electrodeGroupList{length(electrodeGroupList)+1} = highPriorityElectrodeNums;
+    groupNameList{length(groupNameList)+1} = 'highPriority';
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % display bad electrodes for all protocols and also generate common bad electrodes
@@ -47,9 +53,10 @@ badElecList       = cell(1,numProtocols);
 badImpedanceElecs = cell(1,numProtocols);
 noisyElecs        = cell(1,numProtocols);
 flatPSDElecs      = cell(1,numProtocols);
-numbadTrialsPerElec     = [];
 
-allBadElecsProtocol = [];
+numBadTrialsPerElec     = [];
+numBadElecs             = [];
+allBadElecsProtocol     = [];
 
 for i=1:numProtocols
     
@@ -70,7 +77,13 @@ for i=1:numProtocols
         badElecList{i}           = x.badElecs;
         badImpedanceElecs{i}     = x.badElecs.badImpedanceElecs;
         noisyElecs{i}            = x.badElecs.noisyElecs;
-        flatPSDElecs{i}          = x.badElecs.flatPSDElecs;    
+        flatPSDElecs{i}          = x.badElecs.flatPSDElecs;   
+        allBadElecs{i}           = union(badImpedanceElecs{i},union(noisyElecs{i},flatPSDElecs{i}));
+        numBadElecs(i)           = length(allBadElecs{i});
+        for j=1:length(electrodeGroupList)
+            badElecsGroupWise{i,j} = intersect(allBadElecs{i},electrodeGroupList{j});
+            numBadElecsGroupWise(i,j) = length(badElecsGroupWise{i,j});
+        end
     end
     
     numBadTrialsForEyePerProtocol(i) = length(badEyeTrialsList{i});
@@ -82,14 +95,35 @@ for i=1:numProtocols
     badElecPerProtocol(flatPSDElecs{i}) = 3;
     
     numBadElecPerProtocol(i) = nnz(badElecPerProtocol);
-    allBadElecsProtocol = [allBadElecsProtocol badElecPerProtocol];
+    allBadElecsProtocol   = [allBadElecsProtocol badElecPerProtocol];
+    
     
 
     for j=1:numElectrodes
-        numbadTrialsPerElec(i,j) = length(elecWiseBadTrialList{i}{j})/protocolTrialNums(i);
+        numBadTrialsPerElec(i,j) = length(elecWiseBadTrialList{i}{j})/protocolTrialNums(i);
     end
 
+% two Matrix we have:
  
+% numBadTrialsPerElec :mat1
+
+numBadTrialsPerElecAsPerElectrodeGroups = zeros(8,74);
+allBadElecsProtocolAsPerElectrodeGroups = zeros(8,74);
+numLenghtElectrodeGroups = cellfun(@length,electrodeGroupList);
+
+
+% numBadTrialsPerElecAsPerElectrodeGroups(:,1:numLenghtElectrodeGroups(1))) = numBadTrialsPerElec(:,electrodeGroupList{1,1});
+% numBadTrialsPerElecAsPerElectrodeGroups(:,(numLenghtElectrodeGroups(1)+1):numLenghtElectrodeGroups(1)+numLenghtElectrodeGroups(2))= numBadTrialsPerElec(:,electrodeGroupList{1,2});
+% numBadTrialsPerElecAsPerElectrodeGroups(:,(numLenghtElectrodeGroups(1)+1):numLenghtElectrodeGroups(1)+numLenghtElectrodeGroups(2))= numBadTrialsPerElec(:,electrodeGroupList{1,2});
+
+
+
+
+
+
+% allBadElecsProtocol mat2
+    
+    
 % badElectrodes.badImpedanceElecs = unique(badElectrodes.badImpedanceElecs);
 % badElectrodes.noisyElecs = unique(badElectrodes.noisyElecs);
 % badElectrodes.flatPSDElecs = unique(badElectrodes.flatPSDElecs);
@@ -97,43 +131,87 @@ for i=1:numProtocols
 
 end
 
+% numBadTrialsPerElec
+startIndex = 1;
+startIndexVecOne = [];
+endIndex = numLenghtElectrodeGroups(1);
+for i=1:length(numLenghtElectrodeGroups)  
+    startIndexVecOne = [startIndexVecOne startIndex];
+    numBadTrialsPerElecAsPerElectrodeGroups(:,startIndex:endIndex)= numBadTrialsPerElec(:,electrodeGroupList{1,i});
+    startIndex = endIndex+1;    
+    if i~=length(numLenghtElectrodeGroups)   
+        endIndex = endIndex+numLenghtElectrodeGroups(i+1); 
+    end
+    
+end
+
+% allBadElecsProtocol
+startIndex = 1;
+startIndexVecTwo = [];
+endIndex = numLenghtElectrodeGroups(1);
+allBadElecsProtocol = allBadElecsProtocol';
+for i=1:length(numLenghtElectrodeGroups)
+    startIndexVecTwo = [startIndexVecTwo startIndex];
+    allBadElecsProtocolAsPerElectrodeGroups(:,startIndex:endIndex)= allBadElecsProtocol(:,electrodeGroupList{1,i});
+    startIndex = endIndex+1;    
+    if i~=length(numLenghtElectrodeGroups)   
+        endIndex = endIndex+numLenghtElectrodeGroups(i+1); 
+    end
+end
+
+
+if individualSubjectFigureFlag
 %------------------plot Bad elctrodes
-myColorMap = [zeros(256,2),linspace(0,1,256)'];
-colormap(jet);
-% subplot(2,1,1);
-pos1 = [0.1 0.55 0.6 0.4];
-hNumBadTrialsPerElec = subplot('Position',pos1);
-imagesc(hNumBadTrialsPerElec,numbadTrialsPerElec); ylabel('Protocol No'); % xlabel('Electrode Index');
-hc=colorbar; hc.Label.String='Proportion of Bad Electrode'; hNumBadTrialsPerElec.CLim=[0 0.5];
-
-pos2 = [0.75 0.55 0.21 0.4];
-hNumBadElecPerProcotol = subplot('Position',pos2);
-% totalBadElectrodesAcrossProtocol = sum(allBadElecsProtocol,1);
-stem(hNumBadElecPerProcotol,1:numProtocols,numBadTrialsIncEyePerProtocol./protocolTrialNums,'color',[0.5 0.5 0.5]); axis('tight'); hold on
-stem(hNumBadElecPerProcotol,1:numProtocols,numBadTrialsForEyePerProtocol./protocolTrialNums,'color',[0.8 0.0 0.0]); axis('tight'); 
-xlabel(hNumBadElecPerProcotol,'Protocol No'); ylabel('Proportion of Bad Electrode');
-view([90 -90]); 
-set(hNumBadElecPerProcotol, 'XDir','reverse');
-xlim(hNumBadElecPerProcotol,[0.5 8.5]); ylim(hNumBadElecPerProcotol,[0 1]); 
-legend(hNumBadElecPerProcotol,'Bad Trials inc Bad Eye Trial', 'Only Bad Eye Trial','location','best');
-
-pos3 = [0.1 0.1 0.6 0.4];
-hAllBadElecsPerProtocol = subplot('Position',pos3);
-imagesc(allBadElecsProtocol');
-colorbar;
-ylabel('Protocol No'); xlabel('Electrode Index');
-hc1=colorbar; hc1.Label.String='Proportion of Bad Electrode'; hAllBadElecsPerProtocol.CLim=[0 3];
-
-pos4 = [0.75 0.1 0.21 0.4];
-subplot('Position',pos4);
-% totalBadElectrodesAcrossProtocol = sum(allBadElecsProtocol,1);
-stem(1:numProtocols,numBadElecPerProtocol,'color',[0.5 0.5 0.5]); axis('tight');
-view([90 -90]); 
-set(gca, 'XDir','reverse');
-xlim([0.5 8.5]);
-ylabel('Total Bad Electrode');
-xlabel('Protocol No');
-% h2 = getPlotHandles(1,1,[0.05 0.43 0.3 0.1]);
+    myColorMap = [zeros(256,2),linspace(0,1,256)'];
+    colormap(jet);
+    % subplot(2,1,1);
+    pos1 = [0.1 0.55 0.6 0.4];
+    hNumBadTrialsPerElec = subplot('Position',pos1);
+    imagesc(hNumBadTrialsPerElec,numBadTrialsPerElecAsPerElectrodeGroups); ylabel('Protocol No'); % xlabel('Electrode Index');
+    arrayfun(@(a)xline(a,'--','color','red','lineWidth',2),startIndexVecOne(2:end));
+    hc=colorbar; hc.Label.String='Proportion of Bad Trials'; %hNumBadTrialsPerElec.CLim=[0 0.5];
+    text(3,-0.00001,groupNameList{1},'Color','Blue','FontSize',14);
+    text(12,-0.00001,groupNameList{2},'Color','Red','FontSize',14);
+    text(28,-0.00001,groupNameList{3},'Color','Blue','FontSize',14);
+    text(45,-0.00001,groupNameList{4},'Color','Red','FontSize',14);
+    text(56,-0.00001,groupNameList{5},'Color','Blue','FontSize',14);
+    text(66,-0.00001,groupNameList{6},'Color','Red','FontSize',14);
+    
+    
+    pos2 = [0.75 0.55 0.21 0.4];
+    hNumBadElecPerProcotol = subplot('Position',pos2);
+    % totalBadElectrodesAcrossProtocol = sum(allBadElecsProtocol,1);
+    stem(hNumBadElecPerProcotol,1:numProtocols,numBadTrialsIncEyePerProtocol./protocolTrialNums,'color',[0.5 0.5 0.5]); axis('tight'); hold on
+    stem(hNumBadElecPerProcotol,1:numProtocols,numBadTrialsForEyePerProtocol./protocolTrialNums,'color',[0.8 0.0 0.0]); axis('tight'); 
+    xlabel(hNumBadElecPerProcotol,'Protocol No'); ylabel('Proportion of Bad Trials');
+    view([90 -90]); 
+    set(hNumBadElecPerProcotol, 'XDir','reverse');
+    xlim(hNumBadElecPerProcotol,[0.5 8.5]); ylim(hNumBadElecPerProcotol,[0 1]); 
+    legend(hNumBadElecPerProcotol,'Bad Trials inc Bad Eye Trial', 'Only Bad Eye Trial','location','best');
+    
+    pos3 = [0.1 0.1 0.6 0.4];
+    hAllBadElecsPerProtocol = subplot('Position',pos3);
+    imagesc(allBadElecsProtocolAsPerElectrodeGroups);
+    colorbar;
+    arrayfun(@(a)xline(a,'--','color','red','lineWidth',2),startIndexVecTwo(2:end));
+    ylabel('Protocol No'); xlabel('Electrode Index');
+    hc1=colorbar; hc1.Label.String='Proportion of Bad Electrode'; hAllBadElecsPerProtocol.CLim=[0 3];
+    text(-12,1,'Good','Color','Blue','FontSize',14);
+    text(-12,2,'badImpedance','Color','Cyan','FontSize',14);
+    text(-12,3,'noisyElecs','Color','Yellow','FontSize',14);
+    text(-12,4,'flatPSDElecs','Color','Red','FontSize',14);
+    
+    pos4 = [0.75 0.1 0.21 0.38];
+    subplot('Position',pos4);
+    % totalBadElectrodesAcrossProtocol = sum(allBadElecsProtocol,1);
+    stem(1:numProtocols,numBadElecPerProtocol,'color',[0.5 0.5 0.5]); axis('tight');
+    view([90 -90]); 
+    set(gca, 'XDir','reverse');
+    xlim([0.5 8.5]);
+    ylabel('Total Bad Electrode');
+    xlabel('Protocol No');
+    % h2 = getPlotHandles(1,1,[0.05 0.43 0.3 0.1]);
+end
 
 end
 
