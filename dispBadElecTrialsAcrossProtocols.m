@@ -1,9 +1,11 @@
+%contains bad trials for 3 segments of m1 and m2
 
-function  [numBadElecs,numBadElecsGroupWise] =  dispBadElecTrialsAcrossProtocols(subjectName,expDate,folderSourceString,badTrialNameStr,individualSubjectFigureFlag) %working on this
+
+function  [numBadElecs,numBadElecsGroupWise, numBadTrialsWithoutEye, numBadTrialsForEye, numBadTrialsIncEye] =  dispBadElecTrialsAcrossProtocols(subjectName,expDate,folderSourceString,badTrialNameStr,individualSubjectFigureFlag) %working on this
  %working on this
 
 if ~exist('folderSourceString','var');              folderSourceString=[];                          end
-if ~exist('badElectrodeList','var');                badTrialNameStr='_v5';                          end
+if ~exist('badTrialNameStr','var');                 badTrialNameStr='_v5';                          end
 if ~exist('individualSubjectFigureFlag','var')      individualSubjectFigureFlag = 0;                end
 % if ~exist('badElectrodeRejectionFlag','var');       badElectrodeRejectionFlag=2;                    end
 % if ~exist('plotRawTFFlag','var');                   plotRawTFFlag=0;                                end
@@ -13,7 +15,7 @@ if ~exist('individualSubjectFigureFlag','var')      individualSubjectFigureFlag 
 % if ~exist('tfFlag','var');                          tfFlag=0;                                       end
 
 if isempty(folderSourceString)
-    folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
+    folderSourceString = 'D:\OneDrive - Indian Institute of Science\Su               pratim\Projects\MeditationProjects\MeditationProject2';
 end
 
 
@@ -26,6 +28,7 @@ allElectrodeList = 1:64;
 numElectrodes = length(allElectrodeList);
 protocolNameList = [{'EO1'}     {'EC1'}     {'G1'}      {'M1'}          {'G2'}      {'EO2'}     {'EC2'}     {'M2'}];
 protocolTrialNums = [120 120 120 360 120 120 120 360];
+segmentNums = [1 1 1 3 1 1 1 3];
 colorNames       = [{[0.9 0 0]} {[0 0.9 0]} {[0 0 0.9]} {[0.7 0.7 0.7]} {[0 0 0.3]} {[0.3 0 0]} {[0 0.3 0]} {[0.3 0.3 0.3]}];
 numProtocols = length(protocolNameList);
 
@@ -58,6 +61,7 @@ numBadTrialsPerElec     = [];
 numBadElecs             = [];
 allBadElecsProtocol     = [];
 
+numSeg = 1;
 for i=1:numProtocols
     
     badElecPerProtocol=zeros(numElectrodes,1); % initialized with all good trials
@@ -86,10 +90,14 @@ for i=1:numProtocols
         end
     end
     
-    numBadTrialsForEyePerProtocol(i) = length(badEyeTrialsList{i});
-    numBadTrialsIncEyePerProtocol(i) = length(commonBadTrialsIncEye{i});
-    
-    % assignging 
+   
+        for jk = 1:segmentNums(i)
+            numBadTrialsWithoutEye(numSeg) = nnz(badTrialsList{i}>120*(jk-1) & badTrialsList{i}<120*jk + 1);
+            numBadTrialsForEye(numSeg) = nnz(badEyeTrialsList{i}>120*(jk-1) & badEyeTrialsList{i}<120*jk + 1);
+            numBadTrialsIncEye(numSeg) = nnz(commonBadTrialsIncEye{i}>120*(jk-1) & commonBadTrialsIncEye{i}<120*jk+1);
+            numSeg = numSeg +1;
+        end
+    % assigning 
     badElecPerProtocol(badImpedanceElecs{i}) = 1; 
     badElecPerProtocol(noisyElecs{i}) = 2;
     badElecPerProtocol(flatPSDElecs{i}) = 3;
@@ -181,8 +189,9 @@ if individualSubjectFigureFlag
     pos2 = [0.75 0.55 0.21 0.4];
     hNumBadElecPerProcotol = subplot('Position',pos2);
     % totalBadElectrodesAcrossProtocol = sum(allBadElecsProtocol,1);
-    stem(hNumBadElecPerProcotol,1:numProtocols,numBadTrialsIncEyePerProtocol./protocolTrialNums,'color',[0.5 0.5 0.5]); axis('tight'); hold on
-    stem(hNumBadElecPerProcotol,1:numProtocols,numBadTrialsForEyePerProtocol./protocolTrialNums,'color',[0.8 0.0 0.0]); axis('tight'); 
+    numSegMod = numSeg-1; trialNumPerSeg = 120; 
+    stem(hNumBadElecPerProcotol,1:numSegMod,numBadTrialsIncEye./trialNumPerSeg,'color',[0.5 0.5 0.5]); axis('tight'); hold on
+    stem(hNumBadElecPerProcotol,1:numSegMod,numBadTrialsForEye./trialNumPerSeg,'color',[0.8 0.0 0.0]); axis('tight'); 
     xlabel(hNumBadElecPerProcotol,'Protocol No'); ylabel('Proportion of Bad Trials');
     view([90 -90]); 
     set(hNumBadElecPerProcotol, 'XDir','reverse');

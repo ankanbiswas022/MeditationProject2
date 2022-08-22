@@ -4,7 +4,7 @@
 % ToDo
 % 1. Option to use unipolar or bipolar referencing
 
-function displayMeditationData(subjectName,expDate,folderSourceString,badTrialNameStr,badElectrodeRejectionFlag,plotRawTFFlag)
+function saveMeditationData(subjectName,expDate,folderSourceString,badTrialNameStr,badElectrodeRejectionFlag,plotRawTFFlag)
 
 if ~exist('folderSourceString','var');    folderSourceString=[];        end
 if ~exist('badElectrodeList','var');      badTrialNameStr='_v5';        end

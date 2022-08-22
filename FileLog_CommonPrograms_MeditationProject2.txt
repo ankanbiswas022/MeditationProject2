@@ -1,0 +1,26 @@
+We have the following scripts in the folder:
+As on 4:47 PM  on 9th August, 2022
+
+1. TheSubjectDataBase: This has the subject list
+
+2. runSegmentAndSaveData 
+        3. segmentAndSaveData 
+        4. convertEyeDataPix2DegM
+        5. getSFOriStimmInfoFromML
+        6. 
+
+7. runFindBadTrials 
+        8. findBadTrialwithEEG
+
+9. runDisplayMeditationData 
+        10. displayMeditationDataV3
+        11. displayMeditationData
+
+12. runDisplayBadTrialsAcrossProtocols
+        13. dispBAdElecTrialsAcrossProtocols
+
+13. ReadMe.docx 
+
+14. .gitIgnore
+
+

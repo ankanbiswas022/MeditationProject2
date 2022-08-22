@@ -1,0 +1,3 @@
+We are planning to modify saveAnalyzedData
+
+Also add maintainMeditationSubjectDataBase code to maintain 

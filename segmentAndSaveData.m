@@ -25,8 +25,8 @@ if isempty(folderSourceString)
 end
 
 gridType = 'EEG';
-% protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}];
-protocolNameList = {'EC1'};
+protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}];
+% protocolNameList = {'EC2'};
 
 timeStartFromBaseLine = -1.25; deltaT = 2.5;
 
@@ -102,11 +102,14 @@ for i=1:length(protocolNameList)
         eyeRawDataThisTrial = getEyeDataThisTrial(MLDataThisTrial.AnalogData.Eye,goodStimTimeThisTrial,timeStartFromBaseLine,deltaT,FsEye);
         eyeRawData = cat(1,eyeRawData,eyeRawDataThisTrial);
         % Get and Align eye data(GazeData)
+ 
         eyeGazeDataThisTrial = getEyeDataThisTrial(MLDataThisTrial.AnalogData.EyeExtra,goodStimTimeThisTrial,timeStartFromBaseLine,deltaT,FsEye);
         eyeRawGazeData = cat(1,eyeRawGazeData,eyeGazeDataThisTrial);
         % Convert the Gaze date to degrees
         [eyeDataDegXThisTrial,eyeDataDegYThisTrial] = convertEyeDataPix2DegML(squeeze(eyeGazeDataThisTrial));
         eyeDataDegX =  cat(1,eyeDataDegX,eyeDataDegXThisTrial'); eyeDataDegY = cat(1,eyeDataDegY,eyeDataDegYThisTrial');
+%         figure(10);
+%         scatter(eyeDataDegX,eyeDataDegY); hold on
     end
     
     compareBPWithML(goodStimTimes,goodStimTimesML);
@@ -147,7 +150,8 @@ dTBP = diff(goodStimTimes);
 dTML = diff(goodStimTimesML);
 maxD = 1000*max(abs(dTBP-dTML));
 
-maxTol = 30; % Must be within this limit
+maxTol = 35; % Must be within this limit
+
 if maxD>maxTol
     plot(dTBP,'b'); hold on; plot(dTML,'r');
     error(['max difference in timing: ' num2str(maxD) 'exceeds maxTolerence of ' num2str(maxTol) ' ms']);
@@ -162,7 +166,13 @@ numSamplesToUse = round(epochDur*FsEye);
 xsEye = (1:maxEyePos)/FsEye;
 
 for k=1:length(goodStimTimesThisTrial)
-    startPos = find(xsEye<(goodStimTimesThisTrial(k)+timeStartFromBaseLine), 1, 'last' );
+    
+    if (goodStimTimesThisTrial(k)+timeStartFromBaseLine)<xsEye(1) % this fixes a error if startTime is very low, startPos becomes empty
+        startPos=1;
+    else        
+        startPos = find(xsEye<(goodStimTimesThisTrial(k)+timeStartFromBaseLine), 1, 'last' );
+    end
+    
     if (startPos+numSamplesToUse)<=maxEyePos
         eyeDataThisTrial(k,:,:) = eyeDataML(startPos + (1:numSamplesToUse),:); %#ok<*AGROW> 
     else
