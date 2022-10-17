@@ -1,6 +1,6 @@
 % run script for calling the 'saveIndividualSubjectDataMeditation' function
-% runs for only the gender and aged matched subject
-% define paramters i.e. badTrial algorithm and badElectrode
+% runs for the given Indexes
+% currently, we are passing indexes for the gender and age-matached subjects  
 
 clear; close all
 
@@ -8,10 +8,9 @@ clear; close all
 [subjectNames,expDates] = subjectDatabaseMeditationProject2;
 % loads indexes for the gender and age-matached subjects  
 load('D:\Projects\MeditationProjects\MeditationProject2\data\savedData\IndexesForMatchedSubject.mat');
-% segmentTheseIndices = allIndexes;
-segmentTheseIndices = 4;
+segmentTheseIndices = allIndexes;
 
-% defining parameters
+% input parameters
 folderSourceString = 'D:\Projects\MeditationProjects\MeditationProject2';
 saveDataFolder = fullfile(folderSourceString,'data','savedData','subjectWise');
 badTrialNameStr = '_d4020_v10';
