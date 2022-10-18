@@ -1,5 +1,6 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Load data %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+clear
 clf
 folderSrourceString = 'D:\Projects\MeditationProjects\MeditationProject2\data\savedData\subjectWise';
 fileName = 'GroupedPowerDataPulledAcrossSubjects.mat';
@@ -26,34 +27,27 @@ gridPos=[0.1 0.1 0.85 0.75];
 epA = getPlotHandles(6,12,gridPos);
 % linkaxes(epA);
 showSEMFlag = 0;
-putAxisLabel = 0;   
+putAxisLabel = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % get Data and plot
 allMeanPSDs = [];
 freqVals=1:251;
 
-for group=1:length(groupIDs)
+% Keep the date in two dimentions
+powerValStCombined{1}=powerValStCombinedControl;
+powerValStCombined{2}=powerValStCombinedAdvanced;
+
+for p=1:numProtocols % Segments: EO1/EC1/........
     for g=1:numElecGroups % Electrode Group
-        if g==1
-            showTitleFlag=1;
-        else
-            showTitleFlag=0;
-        end
-        electrodeList = electrodeGroupList0{g};
-        switch group
-            case 1
-                powerValStCombined=powerValStCombinedAdvanced;
-            case 2
-                powerValStCombined=powerValStCombinedControl;
-        end
-        
-        
-        % mean across the selected electrodes in the raw power Domain
-        powerValStCombinedThisElecGroup =  mean(powerValStCombined(:,:,:,electrodeList),4,'omitnan');
-        % log transform the values
-        powerValSTCombinedAdvancedLogTransformed = log10(powerValStCombinedThisElecGroup);
-        
-        for p=1:numProtocols            
+        for group=1:length(groupIDs) %Control and meditators
+            
+            %setting the displayFlags (there should be better way)
+            if g==1
+                showTitleFlag=1;
+            else
+                showTitleFlag=0;
+            end
+            
             if p==1
                 putElecGroupName = 1;
                 if g==6
@@ -61,12 +55,19 @@ for group=1:length(groupIDs)
                 end
             else
                 putElecGroupName = 0;
-                putAxisLabel = 0;                
+                putAxisLabel = 0;
             end
             
+            %------------------------------the main code-------------------------------------------------------------------
+            electrodeList = electrodeGroupList0{g};
+            % mean across the selected electrodes in the raw power Domain
+            powerValStCombinedThisElecGroup =  mean(powerValStCombined{group}(:,:,:,electrodeList),4,'omitnan');
+            % log transform the values
+            powerValSTCombinedAdvancedLogTransformed = log10(powerValStCombinedThisElecGroup);
             data = squeeze(powerValSTCombinedAdvancedLogTransformed(:,p,:));
             plotData(epA(g,p),freqVals,data,colorNameGroupsIDs{group},showSEMFlag,showTitleFlag,protocolNameList{p},putElecGroupName,groupNameList0{g},putAxisLabel)
-        end        
+            %--------------------------------------------------------------------------------------------------
+        end
     end
 end
 
@@ -103,6 +104,6 @@ if putAxisLabel
     ylabel(hPlot,'lg(Power)','FontSize',12);
     legend(hPlot,'Med','Con');
     sgtitle('Raw PSD for Meditators vs. Control across different protocols, n=12');
-%     xline(hPlot,24);
+    %     xline(hPlot,24);
 end
 end
