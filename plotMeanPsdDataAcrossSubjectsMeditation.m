@@ -1,5 +1,6 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Load data %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% figure
 clear
 clf
 folderSrourceString = 'D:\Projects\MeditationProjects\MeditationProject2\data\savedData\subjectWise';
@@ -10,12 +11,12 @@ load(fullfile(folderSrourceString,fileName));
 gridType = 'EEG';
 capType = 'actiCap64_UOL';
 
-groupIDs = [{'A'} {'C'}];
+groupIDs = [{'C'} {'A'}];
 protocolNameList = [{'EO1'}  {'EC1'}  {'G1'}  {'M1a'}  {'M1b'}  {'M1c'}   {'G2'}  {'EO2'}  {'EC2'}  {'M2a'} {'M2b'} {'M2c'}];
 numProtocols = length(protocolNameList);
 
-colorNameGroupsIDs = [{[1 0 0]} {[0 1 0]} {[0 0 1]}];
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+colorNameGroupsIDs = [{[0 1 0]} {[1 0 0]} {[0 0 1]}];
+%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 [~,~,~,electrodeGroupList0,groupNameList0,highPriorityElectrodeNums] = electrodePositionOnGrid(1,gridType,[],capType);
 electrodeGroupList0{6} = highPriorityElectrodeNums;
 groupNameList0{6} = 'highPriority';
@@ -26,14 +27,14 @@ numElecGroups = length(electrodeGroupList0);
 gridPos=[0.1 0.1 0.85 0.75];
 epA = getPlotHandles(6,12,gridPos);
 % linkaxes(epA);
-showSEMFlag = 0;
+showSEMFlag = 1;
 putAxisLabel = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % get Data and plot
 allMeanPSDs = [];
 freqVals=1:251;
 
-% Keep the date in two dimentions
+% combine Data
 powerValStCombined{1}=powerValStCombinedControl;
 powerValStCombined{2}=powerValStCombinedAdvanced;
 
@@ -61,12 +62,20 @@ for p=1:numProtocols % Segments: EO1/EC1/........
             %------------------------------the main code-------------------------------------------------------------------
             electrodeList = electrodeGroupList0{g};
             % mean across the selected electrodes in the raw power Domain
-            powerValStCombinedThisElecGroup =  mean(powerValStCombined{group}(:,:,:,electrodeList),4,'omitnan');
+            powerValStCombinedThisElecGroup = mean(powerValStCombined{group}(:,:,:,electrodeList),4,'omitnan');
             % log transform the values
             powerValSTCombinedAdvancedLogTransformed = log10(powerValStCombinedThisElecGroup);
             data = squeeze(powerValSTCombinedAdvancedLogTransformed(:,p,:));
+            
             plotData(epA(g,p),freqVals,data,colorNameGroupsIDs{group},showSEMFlag,showTitleFlag,protocolNameList{p},putElecGroupName,groupNameList0{g},putAxisLabel)
             %--------------------------------------------------------------------------------------------------
+            dataForTest(group,:,:) = data;
+            if group==2
+                data1 = squeeze(dataForTest(1,:,:));
+                data2 = squeeze(dataForTest(2,:,:));
+                axesHandle = epA(g,p);
+            compareMeansAndShowSignificance(data1,data2,axesHandle)
+            end
         end
     end
 end
@@ -95,15 +104,76 @@ if showTitleFlag
     title(hPlot,titleStr);
 end
 if putElecGroupName
-    text(-60,-0.75,groupName,'FontSize',14,'Rotation',45,'parent',hPlot);
+    text(-250,-0.75,groupName,'FontSize',14,'Rotation',45,'parent',hPlot);
 end
 
 if putAxisLabel
     xlabel(hPlot,'frequency(Hz)','FontSize',12);
     %     ylabel(hPlot,'log_{10}(Power)','FontSize',12);
     ylabel(hPlot,'lg(Power)','FontSize',12);
-    legend(hPlot,'Med','Con');
+%     legend(hPlot,'Med','Con');
     sgtitle('Raw PSD for Meditators vs. Control across different protocols, n=12');
     %     xline(hPlot,24);
 end
+end
+
+
+function compareMeansAndShowSignificance(data1,data2,axesHandle)
+
+hPlot = axesHandle;
+% set(hPlot,'XTick',[1 3 5 7],'XTickLabel',[1.6 6.25 25 100]);
+yLims= getYLims(hPlot); %max(min([0 inf],getYLims(hPlot)),[-inf 1]);
+
+%%%%%%%%%%%%%%%%%%%%%%% compare attIn and attOut %%%%%%%%%%%%%%%%%%%%%%%%%%
+dX=1; dY = diff(yLims)/20;
+numDays = 2;
+numContrasts=61;
+contrastIndices = 0:numContrasts-1;
+
+if numDays>1
+    for i=1:numContrasts
+        [~,p] = ttest2(data1(:,i),data2(:,i));
+%         if p<0.05/numContrasts
+%             pColor = 'r';
+        if p<0.05
+            pColor = 'r';
+        else
+            pColor = 'w';
+        end
+        
+        patchX = contrastIndices(i)-dX/2;
+        patchY = yLims(1)-2*dY;
+        patchLocX = [patchX patchX patchX+dX patchX+dX];
+        patchLocY = [patchY patchY+dY patchY+dY patchY];
+        patch(patchLocX,patchLocY,pColor,'Parent',hPlot,'EdgeColor',pColor);
+    end
+end
+axis(hPlot,[0 numContrasts-1 yLims+[-2*dY 2*dY]]);
+% ylabel(hPlot,ylabelStr);
+end
+
+
+% Rescaling functions
+function yLims = getYLims(plotHandles)
+
+[numRows,numCols] = size(plotHandles);
+% Initialize
+yMin = inf;
+yMax = -inf;
+
+for row=1:numRows
+    for column=1:numCols
+        % get positions
+        axis(plotHandles(row,column),'tight');
+        tmpAxisVals = axis(plotHandles(row,column));
+        if tmpAxisVals(3) < yMin
+            yMin = tmpAxisVals(3);
+        end
+        if tmpAxisVals(4) > yMax
+            yMax = tmpAxisVals(4);
+        end
+    end
+end
+
+yLims = [yMin yMax];
 end
