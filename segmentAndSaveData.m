@@ -15,22 +15,27 @@
 % 8. M2 (Meditation 2): Duration: 15 minutes - same as M1 but with gamma
 % protocol running 
 
-function segmentAndSaveData(subjectName,expDate,folderSourceString,FsEye)
+function segmentAndSaveData(subjectName,expDate,folderSourceString,FsEye,digitalCodeMismatchFlag)
 
-if ~exist('folderSourceString','var');    folderSourceString=[];        end
-if ~exist('FsEye','var');                 FsEye=1000;                   end
+if ~exist('folderSourceString','var');      folderSourceString=[];        end
+if ~exist('FsEye','var');                   FsEye=1000;                   end
+if ~exist('digitalCodeMismatchFlag','var'); digitalCodeMismatchFlag=0;                   end
 
 if isempty(folderSourceString)
     folderSourceString = 'D:\OneDrive - Indian Institute of Science\Supratim\Projects\MeditationProjects\MeditationProject2';
 end
 
 gridType = 'EEG';
-protocolNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}];
+protocolNameList = [{'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}];
+% protocolNameList = [ {'EO2'} {'EC2'} {'M2'} ];
 % protocolNameList = {'EC2'};
 
 timeStartFromBaseLine = -1.25; deltaT = 2.5;
 
-trialStartCode = 9; trialEndCode = 18;
+trialStartCode = 9; trialEndCode = 18; 
+if digitalCodeMismatchFlag
+    trialEndCodeExeption=2;
+end
 
 for i=1:length(protocolNameList)
     protocolName = protocolNameList{i};
@@ -39,22 +44,44 @@ for i=1:length(protocolNameList)
     folderName = fullfile(folderSourceString,'data',subjectName,gridType,expDate,protocolName);
     folderExtract = fullfile(folderName,'extractedData');
     folderSave = fullfile(folderName,'segmentedData','eyeData');
-    
+
+    % fix the position of the occurence of the trialStartCOdes as well    
+
     [digitalTimeStamps,digitalEvents]=extractDigitalDataBrainProducts(subjectName,expDate,protocolName,folderSourceString,gridType,0);
-    trialStartTimesListBP = digitalTimeStamps(digitalEvents==trialStartCode);
-    trialEndTimesListBP = digitalTimeStamps(digitalEvents==trialEndCode);
+    
+    % errofix@AB
+    %check whther the first code is 9 or not;
+    if ~isequal(digitalEvents(1),trialStartCode)
+        disp('The first event is not the trial start code in BP');
+    elseif strcmp(protocolName(1),'G') 
+        % this works only for G2 where we have five codes for each trial
+        trialStartPositions=1:5:5*120;
+        trialStartTimesListBP = digitalTimeStamps(trialStartPositions);
+    elseif strcmp(protocolName,'M2')
+        trialStartPositions=1:5:5*360;
+        trialStartTimesListBP = digitalTimeStamps(trialStartPositions);
+    else
+        trialStartTimesListBP = digitalTimeStamps(digitalEvents==trialStartCode);
+    end
+
+%     trialStartTimesListBP = digitalTimeStamps(trialStartPositions);
+    trialEndTimesListBP = digitalTimeStamps(digitalEvents==trialEndCode | digitalEvents==trialEndCodeExeption);
     
     % Get data from ML
     fileNameML = fullfile(folderSourceString,'data','rawData',[subjectName expDate],[subjectName expDate protocolName '.bhv2']);
-    [MLData,MLConfig,MLTrialRecord] = mlread(fileNameML);
-    
-    numTrials = length(MLData);
-    if numTrials ~= length(trialStartTimesListBP)
-        error('Number of trials in ML do not match with number of start trial codes in BP');
-    end
+    if isfile(fileNameML)
+        [MLData,MLConfig,MLTrialRecord] = mlread(fileNameML);
+        numTrials = length(MLData);
+        goodStimTimesML = []; % Same sequence constructed using ML data. Used for comparison
+        if numTrials ~= length(trialStartTimesListBP)
+            error('Number of trials in ML do not match with number of start trial codes in BP');
+        end
+    else % exeptional case, when we dont have the .bhv2 file from the Monkeylogic
+        numTrials = find(digitalEvents==9); % marker 9 denotes the trial start
+    end    
     
     goodStimTimes = []; % This is a long sequence of epoch times around which data segments are cut
-    goodStimTimesML = []; % Same sequence constructed using ML data. Used for comparison
+%     goodStimTimesML = []; % Same sequence constructed using ML data. Used for comparison
     goodStimCodeNums = [];
     
     eyeRawData = [];
@@ -64,13 +91,18 @@ for i=1:length(protocolNameList)
     
     for j=1:numTrials
         trialStartTimeBP = trialStartTimesListBP(j); % Start of trial as per BP timeline
-        trialEndTimeBP = trialEndTimesListBP(j); % End of trial as per BP timeline
-        MLDataThisTrial = MLData(j);
+        trialEndTimeBP   = trialEndTimesListBP(j);   % End of trial as per BP timeline
+        
+        if isfile(fileNameML); MLDataThisTrial = MLData(j); end
         
         if strcmp(protocolName(1),'E') || strcmp(protocolName,'M1') % for EO, EC and M1 protocols
 
-            trialStartTimeML = MLDataThisTrial.BehavioralCodes.CodeTimes((MLDataThisTrial.BehavioralCodes.CodeNumbers==trialStartCode)); % in milliseconds
-            goodStimTimeThisTrial = (trialStartTimeML/1000) - timeStartFromBaseLine; % Relative to this trial (in seconds)
+            if isfile(fileNameML)
+                trialStartTimeML = MLDataThisTrial.BehavioralCodes.CodeTimes((MLDataThisTrial.BehavioralCodes.CodeNumbers==trialStartCode)); % in milliseconds
+                goodStimTimeThisTrial = (trialStartTimeML/1000) - timeStartFromBaseLine; % Relative to this trial (in seconds)
+            else % exeptional case, when we dont have the .bhv2 file from the Monkeylogic 
+                goodStimTimeThisTrial = 0; % in the next step, we would add some average time                
+            end
             
             goodStimTimes = cat(2,goodStimTimes,trialStartTimeBP + goodStimTimeThisTrial); % in seconds
             goodStimTimesML = cat(2,goodStimTimesML,MLDataThisTrial.AbsoluteTrialStartTime/1000 + goodStimTimeThisTrial); % in seconds
@@ -89,6 +121,9 @@ for i=1:length(protocolNameList)
             % The events should match
             if ~isequal(digitalEventsThisTrial(:),codesNumbersThisTrialML(:))
                 disp('Code numbers do not match');
+                % errorfix@Ankan if they dont match then 3rd marker is made
+                % the same as on ML
+                digitalEventsThisTrial(3)=codesNumbersThisTrialML(3);
             end
             
             goodStimPosThisTrial = getGoodStimPosGammaProtocol(digitalEventsThisTrial);
