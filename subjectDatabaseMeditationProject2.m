@@ -9,9 +9,9 @@ i=2; subjectNames{i} = '002S'; expDates{i} = '081021';
 %---------------------------------------------------------------------------------------------------
 i=3; subjectNames{i} = '003S'; expDates{i} = '221021';   % new trial duraration of 2.5 s (extracted)
 %---------------------------------------------------------------------------------------------------
-i=4; subjectNames{i} = '004P';  expDates{i}  = '050122'; %(extracted)
-i=5; subjectNames{i} = '006SR'; expDates{i}  = '070122'; %(extracted)
-i=6; subjectNames{i} = '007CG';  expDates{i} = '070122'; %(extracted)
+i=4; subjectNames{i} = '004P';  expDates{i}  = '050122'; % (extracted)
+i=5; subjectNames{i} = '006SR'; expDates{i}  = '070122'; % (extracted)
+i=6; subjectNames{i} = '007CG';  expDates{i} = '070122'; % (extracted)
 i=7; subjectNames{i} = '008RS';  expDates{i} = '100122'; 
 %---------------------------------------------------------------------------------------------------
 i=8; subjectNames{i} = '009UA';  expDates{i} = '100122'; % 
@@ -38,7 +38,7 @@ i=21; subjectNames{i} = '022SSP';     expDates{i} = '150322';  %
 i=22; subjectNames{i} = '023PM';      expDates{i} = '230322';  % 
 %-------------------------------------------------
 i=23; subjectNames{i} = '024SK';      expDates{i} = '240322';  % Special case: G2 ran for 180 trials, should be 120 trials, check again
-%----------------------------------------------------------------------------
+%------------------------------------------------------------------------------------------
 i=24; subjectNames{i} = '025RK';      expDates{i} = '250322';  % 
 i=25; subjectNames{i} = '026HM';      expDates{i} = '300322';  % 
 i=26; subjectNames{i} = '027SM';      expDates{i} = '310322';  % 
@@ -65,7 +65,7 @@ i=43; subjectNames{i} = '043AK';      expDates{i} = '070522';  %
 i=44; subjectNames{i} = '044PN';      expDates{i} = '090522';  % 
 %-------------------------------------------------------------------------
 i=45; subjectNames{i} = '045SP';      expDates{i} = '100522';  % 
-% ----------------------------------------------------------------- 
+% ------------------------------------------------------------------------
 i=46; subjectNames{i} = '046ME';      expDates{i} = '110522';  % 
 i=47; subjectNames{i} = '047HA';      expDates{i} = '210522';  % 
 i=48; subjectNames{i} = '048RU';      expDates{i} = '280522';  % bhv2 file is not there, not extracted; this is the subject wheere only impedance data we have for one set only; extract again for impedance values, made dummy Impedance values
@@ -79,7 +79,7 @@ i=49; subjectNames{i} = '049KK';      expDates{i} = '020622';  % 43 to 46 extrac
 i=50; subjectNames{i} = '050UR';      expDates{i} = '050722';  %
 i=51; subjectNames{i} = '051RA';      expDates{i} = '090722';  %
 i=52; subjectNames{i} = '052PR';      expDates{i} = '090722';  %
-i=53; subjectNames{i} = '053DR';      expDates{i} = '100722';  % problem might be there
+i=53; subjectNames{i} = '053DR';      expDates{i} = '100722';  % could not extract the EO1 segment, others we have extracted: AB@291222
 i=54; subjectNames{i} = '054MP';      expDates{i} = '100722';  %
 i=55; subjectNames{i} = '055AD';      expDates{i} = '150722';  %
 i=56; subjectNames{i} = '056PR';      expDates{i} = '160722';  %
@@ -96,4 +96,44 @@ i=64; subjectNames{i} = '064PK';      expDates{i} = '290722';  %
 i=65; subjectNames{i} = '065DG';      expDates{i} = '300722';  %
 %------------------------------------------------------------------------------
 i=66; subjectNames{i} = '066SG';      expDates{i} = '010822';  %
+%------------------------------------------------------------------------------
+i=67; subjectNames{i} = '067AT';      expDates{i} = '040822';  %
+i=68; subjectNames{i} = '068RV';      expDates{i} = '020922';  %
+i=69; subjectNames{i} = '069MG';      expDates{i} = '140922';  %
+i=70; subjectNames{i} = '070TB';      expDates{i} = '170922';  %
+i=71; subjectNames{i} = '071GK';      expDates{i} = '170922';  %
+i=72; subjectNames{i} = '072DK';      expDates{i} = '220922';  %
+i=73; subjectNames{i} = '073SK';      expDates{i} = '240922';  %
+%-----------------------------------------------------------------------------
+i=74; subjectNames{i} = '074KS';      expDates{i} = '280922';  %
+i=75; subjectNames{i} = '075AD';      expDates{i} = '131022';  %
+i=76; subjectNames{i} = '076BH';      expDates{i} = '151022';  %
+i=77; subjectNames{i} = '077LK';      expDates{i} = '161022';  %
+%-----------------------------------------------------------------------------
+% to be extracted on 011222: from october to november end
+i=78; subjectNames{i} = '078BM';      expDates{i} = '191022';  %
+i=79; subjectNames{i} = '079SG';      expDates{i} = '141122';  %
+i=80; subjectNames{i} = '080RP';      expDates{i} = '181122';  %
+i=81; subjectNames{i} = '081SN';      expDates{i} = '241122';  % To be changed in the questionares
+i=82; subjectNames{i} = '082MS';      expDates{i} = '241122';  %
+i=83; subjectNames{i} = '083SP';      expDates{i} = '251122';  %
+i=84; subjectNames{i} = '084AK';      expDates{i} = '261122';  %
+i=85; subjectNames{i} = '085BM';      expDates{i} = '291122';  %
+%-----------------------------------------------------------------------------
+% to be extracted on 071222
+i=86; subjectNames{i} = '086AB';      expDates{i} = '031222';  %
+i=87; subjectNames{i} = '087KR';      expDates{i} = '031222';  %
+i=88; subjectNames{i} = '088SP';      expDates{i} = '041222';  %
+
+%-----------------------------------------------------------------------------
+% to be extracted on 131222
+i=89; subjectNames{i} = '089AB';      expDates{i} = '091222';  %
+i=90; subjectNames{i} = '090AV';      expDates{i} = '101222';  %
+i=91; subjectNames{i} = '091SB';      expDates{i} = '101222';  % fixed @Ankan @281222
+i=92; subjectNames{i} = '092KB';      expDates{i} = '111222';  %
+i=93; subjectNames{i} = '093AK';      expDates{i} = '121222';  %
+%-----------------------------------------------------------------------------
+i=94; subjectNames{i} = '095KM';      expDates{i} = '171222';  %
+i=95; subjectNames{i} = '096MS';      expDates{i} = '181222';  %
+
 end
