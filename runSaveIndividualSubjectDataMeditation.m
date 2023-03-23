@@ -8,15 +8,15 @@ clear; close all
 [subjectNames,expDates] = subjectDatabaseMeditationProject2;
 % loads indexes for the gender and age-matached subjects  
 load('D:\Projects\MeditationProjects\MeditationProject2\data\savedData\IndexesForMatchedSubject.mat');
-segmentTheseIndices = allIndexes;
+segmentTheseIndices = allIndexes(1:3);
 
 % input parameters
-folderSourceString = 'D:\Projects\MeditationProjects\MeditationProject2';
+ folderSourceString = 'D:\Projects\MeditationProjects\MeditationProject2';
 saveDataFolder = fullfile(folderSourceString,'data','savedData','subjectWise');
-badTrialNameStr = '_v8';
+badTrialNameStr = '_v8_b30d5';
 badElectrodeRejectionFlag = 2; % 1: saves all the electrodes, 2: rejects individual protocolwise 3: rejects common across all protocols
 logTransformFlag = 0; % saves log Transformed PSD if 'on'
-saveDataFlag = 1; % if 1, saves the data
+saveDataFlag = 0; % if 1, saves the data
 eegElectrodeList = 1:64;
 freqRange = [0 250];
 biPolarFlag = 1;
