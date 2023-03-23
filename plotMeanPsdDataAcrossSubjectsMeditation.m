@@ -3,8 +3,15 @@
 % figure
 clear
 clf
+
 folderSrourceString = 'D:\Projects\MeditationProjects\MeditationProject2\data\savedData\subjectWise';
-fileName = 'GroupedPowerDataPulledAcrossSubjects.mat';
+biPolarFlag=1;
+if biPolarFlag==1
+    fileName = 'BiPolarGroupedPowerDataPulledAcrossSubjects.mat';
+else
+    fileName = 'UnipolarGroupedPowerDataPulledAcrossSubjects.mat';
+end
+
 load(fullfile(folderSrourceString,fileName));
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Fixed variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -27,7 +34,7 @@ numElecGroups = length(electrodeGroupList0);
 gridPos=[0.1 0.1 0.85 0.75];
 epA = getPlotHandles(6,12,gridPos);
 % linkaxes(epA);
-showSEMFlag = 1;
+showSEMFlag = 0;
 putAxisLabel = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % get Data and plot
@@ -74,7 +81,7 @@ for p=1:numProtocols % Segments: EO1/EC1/........
                 data1 = squeeze(dataForTest(1,:,:));
                 data2 = squeeze(dataForTest(2,:,:));
                 axesHandle = epA(g,p);
-            compareMeansAndShowSignificance(data1,data2,axesHandle)
+                compareMeansAndShowSignificance(data1,data2,axesHandle)
             end
         end
     end
@@ -89,7 +96,8 @@ tmp=rgb2hsv(colorName);
 tmp2 = [tmp(1) tmp(2)/3 tmp(3)];
 colorName2 = hsv2rgb(tmp2); % Same color with more saturation
 
-mData = squeeze(mean(data,1));
+% mData = squeeze(mean(data,1));
+mData = squeeze(median(data,1));
 
 if showSEMFlag
     sData = std(data,[],1)/sqrt(size(data,1));
@@ -104,15 +112,15 @@ if showTitleFlag
     title(hPlot,titleStr);
 end
 if putElecGroupName
-    text(-250,-0.75,groupName,'FontSize',14,'Rotation',45,'parent',hPlot);
+    text(-60,-0.75,groupName,'FontSize',14,'Rotation',45,'parent',hPlot);
 end
 
 if putAxisLabel
     xlabel(hPlot,'frequency(Hz)','FontSize',12);
     %     ylabel(hPlot,'log_{10}(Power)','FontSize',12);
     ylabel(hPlot,'lg(Power)','FontSize',12);
-%     legend(hPlot,'Med','Con');
-    sgtitle('Raw PSD for Meditators vs. Control across different protocols, n=12');
+    %     legend(hPlot,'Con','Med');
+    sgtitle('Raw PSD for Meditators vs. Control across different protocols, n=30');
     %     xline(hPlot,24);
 end
 end
@@ -125,16 +133,20 @@ hPlot = axesHandle;
 yLims= getYLims(hPlot); %max(min([0 inf],getYLims(hPlot)),[-inf 1]);
 
 %%%%%%%%%%%%%%%%%%%%%%% compare attIn and attOut %%%%%%%%%%%%%%%%%%%%%%%%%%
-dX=1; dY = diff(yLims)/20;
+dX = 1; dY = diff(yLims)/20;
 numDays = 2;
-numContrasts=61;
+numContrasts = 61;
 contrastIndices = 0:numContrasts-1;
 
 if numDays>1
     for i=1:numContrasts
-        [~,p] = ttest2(data1(:,i),data2(:,i));
-%         if p<0.05/numContrasts
-%             pColor = 'r';
+        %         [~,p] = ttest2(data1(:,i),data2(:,i));    % for paired sample (parametric)
+        [p] = signrank(data1(:,i),data2(:,i));              % for paired sample (non-parametric)
+        %         [p] = ranksum(data1(:,11),data2(:,10))    % for non-paired assumtion
+        %                                                     or two independent unequal-sized samples.)
+        %         if p<0.05/numContrasts
+        %             pColor = 'r';
+
         if p<0.05
             pColor = 'r';
         else
@@ -149,6 +161,7 @@ if numDays>1
     end
 end
 axis(hPlot,[0 numContrasts-1 yLims+[-2*dY 2*dY]]);
+legend('off');
 % ylabel(hPlot,ylabelStr);
 end
 
