@@ -32,6 +32,10 @@ function saveIndividualSubjectDataMeditation(subjectName,expDate,folderSourceStr
 % Uses two local sub-functions
 %   'getAllBadElecs' combines all types of bad electrodes
 %   'getData' gets the power data
+%-----------------------------------------------------------------------------------------
+% Updates on 28/03/23:
+% Remove the remove the bad trials (from individual electrodes)
+% adding flag remove bad trils from individual electrodes!
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Input Check %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if nargin < 2; error('Needs Subject Name and experimetent Date'); end
@@ -44,10 +48,11 @@ if ~exist('logTransformFlag','var');            logTransformFlag = 0;           
 if ~exist('freqRange','var');                   freqRange = [0 250];            end
 if ~exist('saveDataFlag','var');                saveDataFlag = 0;               end
 if ~exist('saveFileName','var');                saveFileName=[];                end
-if ~exist('biPolarFlag','var');                 biPolarFlag=0;                end
+if ~exist('biPolarFlag','var');                 biPolarFlag=0;                  end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Fixed variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 gridType = 'EEG';
+removeIndividualUniqueBadTrials=0;
 
 % We have total 8 protocols. M1 and M2 is segmented to create M1a,M1b,M1c
 % and M2a,M2b,M2c respectively.
@@ -73,6 +78,7 @@ for s=1:numSegments
     if exist(badFileName,'file')
         x = load(badFileName);
         % temp saving bad trials and bad elecs per protocol
+        allBadTrialsList{s} = x.allBadTrials; %1.1c: getting badtrials unique to the electrode
         badTrialsList{s} = x.badTrials;
         badElecList{s} = x.badElecs;
         badElectrodes.badImpedanceElecs = cat(1,badElectrodes.badImpedanceElecs,x.badElecs.badImpedanceElecs);
@@ -106,18 +112,18 @@ numGoodElectrodesList = zeros(1,numSegments);
 for t=1:numTimeRange
     timeRange = timeRangeS{t};
     segmentIndex=1; %default segment
-    
+
     for p=1:numSegments
         segmentName = segmentNameList{p};
         trialIndexes = trialIndexesForSubSegments{segmentIndex};
-        
+
         % for sub-segments M1a,M1b,M1c, we use the same protocol, M1/M2
         if contains(segmentName,'M1')
             segmentName = 'M1';
         elseif contains(segmentName,'M2')
             segmentName = 'M2';
         end
-        
+
         if badElectrodeRejectionFlag==1
             electrodeList = allElectrodeList;
         elseif badElectrodeRejectionFlag==2
@@ -127,21 +133,20 @@ for t=1:numTimeRange
         end
         numGoodElectrodesList(p) = length(electrodeList);
         badElecIndexThisProtocol = getAllBadElecs(badElecList{p});
-        
+
         % uses local sub-function 'getData' for getting the power data
         if ~isempty(electrodeList)
             disp(['Extracting data of ''' segmentName ''' segment, for the ''' timeRangeStrings{t} ''' period']);
             disp(['for trials- ' num2str(trialIndexes(1)) ':' num2str(trialIndexes(end))]);
             
-            [psdVals{p},freqVals] = getData(subjectName,expDate,segmentName,folderSourceString,gridType,allElectrodeList,freqRange,timeRange,trialIndexes,logTransformFlag,biPolarFlag);
-            
-            % removes bad trials, assigns Nans to the bad electrodes and
-            % transforms the data to have the following format: protocol x frequencies x electrodes
-            meanPSDVals{p} = mean(psdVals{p}(:,:,setdiff(1:size(psdVals{p},3),badTrialsList{p})),3);
+            % getting the mean data across trials
+            [meanPSDVals{p},freqVals] = getData(subjectName,expDate,segmentName,folderSourceString,gridType,allElectrodeList,freqRange,timeRange,trialIndexes,logTransformFlag,biPolarFlag,removeIndividualUniqueBadTrials,allBadTrialsList{p},badTrialsList{p});
+
+            % assigning the electrodes as NaN
             meanPSDVals{p}(badElecIndexThisProtocol,:) = NaN;
             meanPSDValsReshaped(p,:,:) = meanPSDVals{p}';
         end
-        
+
         % conditions for M segments
         % changing 'medSegmentIndex' to select the particular trial-block
         if contains(segmentName,'M') && segmentIndex<4
@@ -151,7 +156,7 @@ for t=1:numTimeRange
             end
         end
     end
-    
+
     % stores the power data in different variables for the 'BL' and 'ST' period
     if t==1
         powerValBL = meanPSDValsReshaped;
@@ -173,7 +178,7 @@ function allBadElecs = getAllBadElecs(badElectrodes)
 allBadElecs = [badElectrodes.badImpedanceElecs; badElectrodes.noisyElecs; badElectrodes.flatPSDElecs];
 end
 
-function [psd,freqVals] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,freqRange,timeRange,trialIndexS,logTransformFlag,biPolarFlag)
+function [meanPSDVals,freqVals] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,freqRange,timeRange,trialIndexS,logTransformFlag,biPolarFlag,removeIndividualUniqueBadTrials,allBadTrialsListElecWise,badTrialsList)
 
 if biPolarFlag==1
     capType=  'actiCap64_UOL';
@@ -192,25 +197,41 @@ folderSegment = fullfile(folderSourceString,'data',subjectName,gridType,expDate,
 if ~exist(folderExtract,'file')
     disp([folderExtract ' does not exist']);
     psd = []; freqVals=[];
-else      
+else
     t = load(fullfile(folderSegment,'LFP','lfpInfo.mat'));
     timeVals = t.timeVals;
     Fs = round(1/(timeVals(2)-timeVals(1)));
     goodTimePos = find(timeVals>=timeRange(1),1) + (1:round(Fs*diff(timeRange)));
-    
+
     % Sets up multitaper
     params.tapers   = tapers;
     params.pad      = -1;
     params.Fs       = Fs;
     params.fpass    = freqRange;
     params.trialave = 0;
-    
+
     for i=1:numElectrodes
         if biPolarFlag==1
             analogElecs = bipolarLocs.bipolarLocs(electrodeList(i),:);
             % load the .mat lfp file for the two electrode
-            e1 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(1)) '.mat']));
-            e2 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(2)) '.mat']));
+            % rejection can happen at this level itself,
+            if removeIndividualUniqueBadTrials
+                % first electrode
+                e1 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(1)) '.mat']));
+                badTrialsFirstElec = allBadTrialsListElecWise{analogElecs(1)};
+                if ~isnan(badTrialsFirstElec)
+                    e1.analogData(badTrialsFirstElec,:)= NaN;
+                end                
+                % second electrode
+                e2 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(2)) '.mat']));
+                badTrialsSecondElec = allBadTrialsListElecWise{analogElecs(2)};
+                if ~isnan(badTrialsSecondElec)
+                    e2.analogData(badTrialsSecondElec,:)= NaN;
+                end
+            else
+                e1 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(1)) '.mat']));
+                e2 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(2)) '.mat']));
+            end
             % substract and put this in the e
             e.analogData = e1.analogData-e2.analogData; %updated e for the bipolar
         else
@@ -218,12 +239,20 @@ else
         end
         [psdTMP(i,:,:),freqVals] = mtspectrumc(e.analogData(trialIndexS,goodTimePos)',params); %#ok<AGROW>
     end
-    
+
     if logTransformFlag
         psd = log10(squeeze(mean(psdTMP,1)));
     else
         psd = psdTMP; % passing raw PSD to the main function
     end
+    % removes bad trials, assigns Nans to the bad electrodes and
+    % transforms the data to have the following format: protocol x frequencies x electrodes
+    if removeIndividualUniqueBadTrials
+        meanPSDVals{p} = mean(psdVals{p},3); % dont remove the bad trials as it has already been removed.
+    else
+        meanPSDVals{p} = mean(psdVals{p}(:,:,setdiff(1:size(psdVals{p},3),badTrialsList)),3);
+    end
+
 end
 end
 
