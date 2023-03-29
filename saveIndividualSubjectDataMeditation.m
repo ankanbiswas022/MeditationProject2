@@ -5,7 +5,7 @@ function saveIndividualSubjectDataMeditation(subjectName,expDate,folderSourceStr
 %
 % Required: 'subjectName' and 'exprimentDate'
 %            loads the extracted data for the given subject
-% Optional: Assumes default values if not provided
+% Optional: Assumes default value s if not provided
 %             'folderSourceString','allElectrodeList','badTrialNameStr','badElectrodeRejectionFlag',
 %             'logTransformFlag','freqRange','saveDataFlag' and
 %             'saveFileName'
@@ -52,7 +52,7 @@ if ~exist('biPolarFlag','var');                 biPolarFlag=0;                  
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Fixed variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 gridType = 'EEG';
-removeIndividualUniqueBadTrials=0;
+removeIndividualUniqueBadTrials=1;
 
 % We have total 8 protocols. M1 and M2 is segmented to create M1a,M1b,M1c
 % and M2a,M2b,M2c respectively.
@@ -138,7 +138,7 @@ for t=1:numTimeRange
         if ~isempty(electrodeList)
             disp(['Extracting data of ''' segmentName ''' segment, for the ''' timeRangeStrings{t} ''' period']);
             disp(['for trials- ' num2str(trialIndexes(1)) ':' num2str(trialIndexes(end))]);
-            
+
             % getting the mean data across trials
             [meanPSDVals{p},freqVals] = getData(subjectName,expDate,segmentName,folderSourceString,gridType,allElectrodeList,freqRange,timeRange,trialIndexes,logTransformFlag,biPolarFlag,removeIndividualUniqueBadTrials,allBadTrialsList{p},badTrialsList{p});
 
@@ -179,7 +179,7 @@ allBadElecs = [badElectrodes.badImpedanceElecs; badElectrodes.noisyElecs; badEle
 end
 
 function [meanPSDVals,freqVals] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,freqRange,timeRange,trialIndexS,logTransformFlag,biPolarFlag,removeIndividualUniqueBadTrials,allBadTrialsListElecWise,badTrialsList)
-
+% get the mean PSD values for each individual subjects
 if biPolarFlag==1
     capType=  'actiCap64_UOL';
     bipolarLocs = load(fullfile("D:\Programs\ProgramsMAP\Montages\Layouts\"+capType+"\bipChInfo"+capType));
@@ -215,23 +215,9 @@ else
             analogElecs = bipolarLocs.bipolarLocs(electrodeList(i),:);
             % load the .mat lfp file for the two electrode
             % rejection can happen at this level itself,
-            if removeIndividualUniqueBadTrials
-                % first electrode
-                e1 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(1)) '.mat']));
-                badTrialsFirstElec = allBadTrialsListElecWise{analogElecs(1)};
-                if ~isnan(badTrialsFirstElec)
-                    e1.analogData(badTrialsFirstElec,:)= NaN;
-                end                
-                % second electrode
-                e2 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(2)) '.mat']));
-                badTrialsSecondElec = allBadTrialsListElecWise{analogElecs(2)};
-                if ~isnan(badTrialsSecondElec)
-                    e2.analogData(badTrialsSecondElec,:)= NaN;
-                end
-            else
-                e1 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(1)) '.mat']));
-                e2 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(2)) '.mat']));
-            end
+            e1 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(1)) '.mat']));
+            e2 = load(fullfile(folderSegment,'LFP',['elec' num2str(analogElecs(2)) '.mat']));
+
             % substract and put this in the e
             e.analogData = e1.analogData-e2.analogData; %updated e for the bipolar
         else
@@ -245,14 +231,17 @@ else
     else
         psd = psdTMP; % passing raw PSD to the main function
     end
+
     % removes bad trials, assigns Nans to the bad electrodes and
     % transforms the data to have the following format: protocol x frequencies x electrodes
     if removeIndividualUniqueBadTrials
-        meanPSDVals{p} = mean(psdVals{p},3); % dont remove the bad trials as it has already been removed.
+        badTrialsFirstElec = allBadTrialsListElecWise{analogElecs(1)};
+        badTrialsSecondElec = allBadTrialsListElecWise{analogElecs(2)};
+        commonBadTrials = union(badTrialsFirstElec,badTrialsSecondElec);
+
+        meanPSDVals = mean(psd(:,:,setdiff(1:size(psd,3),commonBadTrials)),3); % dont remove the bad trials as it has already been removed.
     else
-        meanPSDVals{p} = mean(psdVals{p}(:,:,setdiff(1:size(psdVals{p},3),badTrialsList)),3);
+        meanPSDVals = mean(psd(:,:,setdiff(1:size(psd,3),badTrialsList)),3);
     end
-
 end
 end
-
