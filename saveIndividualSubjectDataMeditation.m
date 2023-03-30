@@ -1,4 +1,4 @@
-function saveIndividualSubjectDataMeditation(subjectName,expDate,folderSourceString,allElectrodeList,badTrialNameStr,badElectrodeRejectionFlag,logTransformFlag,freqRange,saveDataFlag,saveFileName,biPolarFlag)
+function saveIndividualSubjectDataMeditation(subjectName,expDate,sdParams)
 % This function saves the power data for the given subject
 %
 % Input:
@@ -37,18 +37,34 @@ function saveIndividualSubjectDataMeditation(subjectName,expDate,folderSourceStr
 % Remove the remove the bad trials (from individual electrodes)
 % adding flag remove bad trils from individual electrodes!
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Unwarpping input paramters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+folderSourceString          = sdParams.folderSourceString;
+% saveDataFolder            = sdParams.saveDataFolder;
+saveFileName                = sdParams.saveFileName;
+
+badTrialNameStr             = sdParams.badTrialNameStr;
+badElectrodeRejectionFlag   = sdParams.badElectrodeRejectionFlag ; % 1: saves all the electrodes, 2: rejects individual protocolwise 3: rejects common across all protocols
+logTransformFlag            = sdParams.logTransformFlag; % saves log Transformed PSD if 'on'
+saveDataFlag                = sdParams.saveDataFlag; % if 1, saves the data
+% eegElectrodeList = sdParams.eegElectrodeList;
+freqRange                   = sdParams.freqRange;
+biPolarFlag                 = sdParams.biPolarFlag;
+% removeIndividualUniqueBadTrials = sdParams.removeIndividualUniqueBadTrials;
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Input Check %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if nargin < 2; error('Needs Subject Name and experimetent Date'); end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Default variables %%%%%%%%%%%%%%%%%%%%%%%%%%
-if ~exist('folderSourceString','var');          folderSourceString=[];          end
-if ~exist('allElectrodeList','var');            allElectrodeList = 1:64;        end
-if ~exist('badTrialNameStr','var');             badTrialNameStr='_v5';          end
-if ~exist('badElectrodeRejectionFlag','var');   badElectrodeRejectionFlag=2;    end
-if ~exist('logTransformFlag','var');            logTransformFlag = 0;           end
-if ~exist('freqRange','var');                   freqRange = [0 250];            end
-if ~exist('saveDataFlag','var');                saveDataFlag = 0;               end
-if ~exist('saveFileName','var');                saveFileName=[];                end
-if ~exist('biPolarFlag','var');                 biPolarFlag=0;                  end
+if ~exist('folderSourceString','var');              folderSourceString=[];              end
+if ~exist('allElectrodeList','var');                allElectrodeList = 1:64;            end
+if ~exist('badTrialNameStr','var');                 badTrialNameStr='_v5';              end
+if ~exist('badElectrodeRejectionFlag','var');       badElectrodeRejectionFlag=2;        end
+if ~exist('logTransformFlag','var');                logTransformFlag = 0;               end
+if ~exist('freqRange','var');                       freqRange = [0 250];                end
+if ~exist('saveDataFlag','var');                    saveDataFlag = 0;                   end
+if ~exist('saveFileName','var');                    saveFileName=[];                    end
+if ~exist('biPolarFlag','var');                     biPolarFlag=0;                      end
+if ~exist('removeIndividualUniqueBadTrials','var'); removeIndividualUniqueBadTrials=0;  end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Fixed variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 gridType = 'EEG';
@@ -235,11 +251,15 @@ else
     % removes bad trials, assigns Nans to the bad electrodes and
     % transforms the data to have the following format: protocol x frequencies x electrodes
     if removeIndividualUniqueBadTrials
-        badTrialsFirstElec = allBadTrialsListElecWise{analogElecs(1)};
-        badTrialsSecondElec = allBadTrialsListElecWise{analogElecs(2)};
-        commonBadTrials = union(badTrialsFirstElec,badTrialsSecondElec);
-
-        meanPSDVals = mean(psd(:,:,setdiff(1:size(psd,3),commonBadTrials)),3); % dont remove the bad trials as it has already been removed.
+        if biPolarFlag
+            badTrialsFirstElec = allBadTrialsListElecWise{analogElecs(1)};
+            badTrialsSecondElec = allBadTrialsListElecWise{analogElecs(2)};
+            commonBadTrials = union(badTrialsFirstElec,badTrialsSecondElec);
+           
+        else
+            commonBadTrials = allBadTrialsListElecWise{i};
+        end
+         meanPSDVals = mean(psd(:,:,setdiff(1:size(psd,3),commonBadTrials)),3); % dont remove the bad trials as it has already been removed.     
     else
         meanPSDVals = mean(psd(:,:,setdiff(1:size(psd,3),badTrialsList)),3);
     end
