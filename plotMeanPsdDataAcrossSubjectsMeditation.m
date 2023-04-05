@@ -1,11 +1,15 @@
+% Working on the code on 5-Apr-23
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Load data %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % figure
 clear
-clf
+% clf
 
-folderSrourceString = 'D:\Projects\MeditationProjects\MeditationProject2\data\savedData\subjectWise';
-biPolarFlag=1;
+folderSrourceString = 'D:\Projects\MeditationProjects\MeditationProject2\data\savedData\subjectWiseDataMaster\subjectWiseUnipolarBadTrialIndElec';
+biPolarFlag=0;
+
 if biPolarFlag==1
     fileName = 'BiPolarGroupedPowerDataPulledAcrossSubjects.mat';
 else
@@ -68,7 +72,7 @@ for p=1:numProtocols % Segments: EO1/EC1/........
             
             %------------------------------the main code-------------------------------------------------------------------
             electrodeList = electrodeGroupList0{g};
-            % mean across the selected electrodes in the raw power Domain
+            % g across the selected electrodes in the raw power Domain
             powerValStCombinedThisElecGroup = mean(powerValStCombined{group}(:,:,:,electrodeList),4,'omitnan');
             % log transform the values
             powerValSTCombinedAdvancedLogTransformed = log10(powerValStCombinedThisElecGroup);
@@ -97,7 +101,7 @@ tmp2 = [tmp(1) tmp(2)/3 tmp(3)];
 colorName2 = hsv2rgb(tmp2); % Same color with more saturation
 
 % mData = squeeze(mean(data,1));
-mData = squeeze(median(data,1));
+mData = squeeze(median(data,1,"omitnan"));
 
 if showSEMFlag
     sData = std(data,[],1)/sqrt(size(data,1));
@@ -108,6 +112,7 @@ end
 hold(hPlot,'on');
 plot(hPlot,xs,mData,'color',colorName,'linewidth',1.5);
 xlim(hPlot,[0 60]);
+ylim(hPlot,[-2 2]);
 if showTitleFlag
     title(hPlot,titleStr);
 end
@@ -120,7 +125,7 @@ if putAxisLabel
     %     ylabel(hPlot,'log_{10}(Power)','FontSize',12);
     ylabel(hPlot,'lg(Power)','FontSize',12);
     %     legend(hPlot,'Con','Med');
-    sgtitle('Raw PSD for Meditators vs. Control across different protocols, n=30');
+    sgtitle('Unipolar: Raw PSD for Meditators vs. Control across different protocols, n=30');
     %     xline(hPlot,24);
 end
 end
