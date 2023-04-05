@@ -1,9 +1,25 @@
 
-folderSourceSring = 'D:\Projects\MeditationProjects\MeditationProject2\data\savedData\subjectWise';
 % combine data for the control and advanced meditators:
-subjectNameGrouped = getOnlyMatchedSubjects;
 % concatenate data for the subjects in a big matrix
-dataString = 'PowerDataAllElecs_';
+tic
+biPolarFlag = 0; 
+removeIndividualUniqueBadTrials = 0; 
+loadFolderpath = getFolderName(biPolarFlag,removeIndividualUniqueBadTrials);
+% load(loadFilepath);
+
+% folderSourceSring = 'D:\Projects\MeditationProjects\MeditationProject2\data\savedData\subjectWiseDataMaster\subjectWiseUnipolarBadTrialIndElec';
+folderSourceSring = loadFolderpath;
+subjectNameGrouped = getOnlyMatchedSubjects;
+
+biPolarFlag=0;
+
+if biPolarFlag==1
+    dataString = 'BipolarPowerDataAllElecs_' ;
+else
+    dataString = 'PowerDataAllElecs_' ;
+end
+    
+% dataString = 'PowerDataAllElecs_';
 % varStringToCat = 'powerValBL';
 
 powerValStCombinedAdvanced = [];
@@ -18,7 +34,7 @@ for groupIndex=1:size(subjectNameGrouped,2)
        
         fileNameToLoad = fullfile(folderSourceSring,[dataString subjectName,'.mat']);
         load(fileNameToLoad);
-        subjectName
+        disp(subjectName);
         
         switch groupIndex
             case 1
@@ -29,12 +45,42 @@ for groupIndex=1:size(subjectNameGrouped,2)
             case 2
                 powerValStCombinedControl(subIndex,:,:,:) = powerValST;
                 powerValBlCombinedControl(subIndex,:,:,:) = powerValBL;
-                if subIndex==10
-                    flag;
-                end
         end        
     end    
 end
 
-saveFileString = 'GroupedPowerDataPulledAcrossSubjects.mat';
+if biPolarFlag==1
+    saveFileString = 'BiPolarGroupedPowerDataPulledAcrossSubjects.mat';
+else
+    saveFileString = 'UnipolarGroupedPowerDataPulledAcrossSubjects.mat';
+end
+
 save(fullfile(folderSourceSring,saveFileString),'powerValStCombinedAdvanced','powerValBlCombinedAdvanced','powerValStCombinedControl','powerValBlCombinedControl');
+
+%% disp run Log: 
+elapsedTime = toc;
+disp('All the data saved successfully and');
+disp(['It took'  string(elapsedTime) ' to run the function']);
+
+
+%% Associated functions
+
+function loadFilepath= getFolderName(biPolarFlag,removeIndividualUniqueBadTrials)
+sdParams.folderSourceString = 'D:\Projects\MeditationProjects\MeditationProject2';
+
+saveDataDeafultStr ='subjectWise';
+
+if biPolarFlag
+    saveDataDeafultStr = [saveDataDeafultStr 'Bipolar'];
+else
+    saveDataDeafultStr = [saveDataDeafultStr 'Unipolar'];
+end
+
+if removeIndividualUniqueBadTrials
+    saveFolderName = [saveDataDeafultStr 'BadTrialIndElec'];
+else
+    saveFolderName = [saveDataDeafultStr 'BadTrialComElec'];
+end
+
+loadFilepath = fullfile(sdParams.folderSourceString,'data','savedData','subjectWiseDataMaster',saveFolderName);
+end
