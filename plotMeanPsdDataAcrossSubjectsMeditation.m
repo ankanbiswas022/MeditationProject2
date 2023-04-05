@@ -1,46 +1,54 @@
-% Working on the code on 5-Apr-23
+%% Working on the code on 5-Apr-23
+% changed the order. first all the flags followed by loading the data
+
+% ToDo:-
+%-------------------------------------------------------
+% add significance within the plot function---
+% choose signicance test based on the datType flag
+% add appropriate legends
+
+%----------------Immedietly-----------------------------
+% difference plots with ErrorBar
+%   - EO1 substract Individual
+%   - EO1 substract common
+% combine data for the possible segments
 
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Load data %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% figure
-clear
-% clf
-
-folderSrourceString = 'D:\Projects\MeditationProjects\MeditationProject2\data\savedData\subjectWiseDataMaster\subjectWiseUnipolarBadTrialIndElec';
-biPolarFlag=0;
-
-if biPolarFlag==1
-    fileName = 'BiPolarGroupedPowerDataPulledAcrossSubjects.mat';
-else
-    fileName = 'UnipolarGroupedPowerDataPulledAcrossSubjects.mat';
-end
-
-load(fullfile(folderSrourceString,fileName));
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Fixed variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%% Fixed variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% close all
+medianFlag = 0;
+biPolarFlag = 1;
+removeIndividualUniqueBadTrials = 0;
+%-----------------------------------------------------------------
 gridType = 'EEG';
 capType = 'actiCap64_UOL';
-
 groupIDs = [{'C'} {'A'}];
-protocolNameList = [{'EO1'}  {'EC1'}  {'G1'}  {'M1a'}  {'M1b'}  {'M1c'}   {'G2'}  {'EO2'}  {'EC2'}  {'M2a'} {'M2b'} {'M2c'}];
+protocolNameList = [{'EO1'}  {'EC1'}  {'G1'}  {'M1a'}  {'M1b'}  {'M1c'} {'G2'}  {'EO2'}  {'EC2'}  {'M2a'} {'M2b'} {'M2c'}];
 numProtocols = length(protocolNameList);
-
 colorNameGroupsIDs = [{[0 1 0]} {[1 0 0]} {[0 0 1]}];
-%%%%%%%%%%%%%%%%%%%%%%%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% get plot handles for 6 electrode group and 12 different conditions
+gridPos=[0.1 0.1 0.85 0.75];
+% figHandle = figure(1);
+epA = getPlotHandles(6,12,gridPos);
+showSEMFlag = 1;
+putAxisLabel = 0;
+
+axisLimAuto = 0;
+xLimsRange = [0 120];
+yLimsRange = [-2 2];
+
 [~,~,~,electrodeGroupList0,groupNameList0,highPriorityElectrodeNums] = electrodePositionOnGrid(1,gridType,[],capType);
 electrodeGroupList0{6} = highPriorityElectrodeNums;
 groupNameList0{6} = 'highPriority';
 numElecGroups = length(electrodeGroupList0);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% get plot handles for 6 electrode group and 12 different conditions
-gridPos=[0.1 0.1 0.85 0.75];
-epA = getPlotHandles(6,12,gridPos);
-% linkaxes(epA);
-showSEMFlag = 0;
-putAxisLabel = 0;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%% Load data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+loadFilepath = getFolderName(biPolarFlag,removeIndividualUniqueBadTrials);
+load(loadFilepath);
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % get Data and plot
 allMeanPSDs = [];
 freqVals=1:251;
@@ -52,14 +60,10 @@ powerValStCombined{2}=powerValStCombinedAdvanced;
 for p=1:numProtocols % Segments: EO1/EC1/........
     for g=1:numElecGroups % Electrode Group
         for group=1:length(groupIDs) %Control and meditators
-            
-            %setting the displayFlags (there should be better way)
-            if g==1
-                showTitleFlag=1;
-            else
-                showTitleFlag=0;
-            end
-            
+
+            % setting the displayFlags (there should be better way)
+            if g==1 showTitleFlag=1; else  showTitleFlag=0;   end
+
             if p==1
                 putElecGroupName = 1;
                 if g==6
@@ -69,7 +73,7 @@ for p=1:numProtocols % Segments: EO1/EC1/........
                 putElecGroupName = 0;
                 putAxisLabel = 0;
             end
-            
+
             %------------------------------the main code-------------------------------------------------------------------
             electrodeList = electrodeGroupList0{g};
             % g across the selected electrodes in the raw power Domain
@@ -77,22 +81,24 @@ for p=1:numProtocols % Segments: EO1/EC1/........
             % log transform the values
             powerValSTCombinedAdvancedLogTransformed = log10(powerValStCombinedThisElecGroup);
             data = squeeze(powerValSTCombinedAdvancedLogTransformed(:,p,:));
-            
-            plotData(epA(g,p),freqVals,data,colorNameGroupsIDs{group},showSEMFlag,showTitleFlag,protocolNameList{p},putElecGroupName,groupNameList0{g},putAxisLabel)
-            %--------------------------------------------------------------------------------------------------
-            dataForTest(group,:,:) = data;
-            if group==2
-                data1 = squeeze(dataForTest(1,:,:));
-                data2 = squeeze(dataForTest(2,:,:));
-                axesHandle = epA(g,p);
-                compareMeansAndShowSignificance(data1,data2,axesHandle)
-            end
+
+            plotData(epA(g,p),freqVals,data,colorNameGroupsIDs{group},showSEMFlag,showTitleFlag,protocolNameList{p},putElecGroupName,groupNameList0{g},putAxisLabel,xLimsRange,yLimsRange,biPolarFlag,medianFlag)
+
+            %-----------------Adding significance to the plot---------------------------------------------------------------------------------
+            %             if group==2
+            %                 data1 = squeeze(dataForTest(1,:,:));
+            %                 data2 = squeeze(dataForTest(2,:,:));
+            %                 axesHandle = epA(g,p);
+            %                 compareMeansAndShowSignificance(data1,data2,axesHandle,xLimsRange,yLimsRange,axisLimAuto)
+            %             end
         end
     end
 end
 
+%%%%%%%%%%%%%%%%%%%%% Helper Functions %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Helper functions:
 
-function plotData(hPlot,xs,data,colorName,showSEMFlag,showTitleFlag,titleStr,putElecGroupName,groupName,putAxisLabel)
+function plotData(hPlot,xs,data,colorName,showSEMFlag,showTitleFlag,titleStr,putElecGroupName,groupName,putAxisLabel,xLimsRange,yLimsRange,biPolarFlag,medianFlag)
 
 if ~exist('showSEMFlag','var');     showSEMFlag = 1;                    end
 
@@ -101,23 +107,33 @@ tmp2 = [tmp(1) tmp(2)/3 tmp(3)];
 colorName2 = hsv2rgb(tmp2); % Same color with more saturation
 
 % mData = squeeze(mean(data,1));
-mData = squeeze(median(data,1,"omitnan"));
+if medianFlag
+    mData = squeeze(median(data,1,"omitnan"));
+else
+    mData = squeeze(mean(data,1,"omitnan"));
+end
 
 if showSEMFlag
-    sData = std(data,[],1)/sqrt(size(data,1));
+    if medianFlag
+        getLoc = @(g)(squeeze(nanmedian(g,1)));
+        bootStat = bootstrp(1000,getLoc,data);
+        sData = std(bootStat);
+    else
+        sData = nanstd(data,[],1)/sqrt(size(data,1));
+    end
     xsLong = [xs fliplr(xs)];
     ysLong = [mData+sData fliplr(mData-sData)];
     patch(xsLong,ysLong,colorName2,'EdgeColor','none','parent',hPlot);
 end
 hold(hPlot,'on');
 plot(hPlot,xs,mData,'color',colorName,'linewidth',1.5);
-xlim(hPlot,[0 60]);
-ylim(hPlot,[-2 2]);
+xlim(hPlot,xLimsRange);
+ylim(hPlot,yLimsRange);
 if showTitleFlag
     title(hPlot,titleStr);
 end
 if putElecGroupName
-    text(-60,-0.75,groupName,'FontSize',14,'Rotation',45,'parent',hPlot);
+    text(-120,-0.75,groupName,'FontSize',14,'Rotation',45,'parent',hPlot);
 end
 
 if putAxisLabel
@@ -125,17 +141,21 @@ if putAxisLabel
     %     ylabel(hPlot,'log_{10}(Power)','FontSize',12);
     ylabel(hPlot,'lg(Power)','FontSize',12);
     %     legend(hPlot,'Con','Med');
-    sgtitle('Unipolar: Raw PSD for Meditators vs. Control across different protocols, n=30');
-    %     xline(hPlot,24);
+    if biPolarFlag
+        sgtitle('Bipolar: Raw PSD for Meditators vs. Control across different protocols, n=30');
+        %     xline(hPlot,24);
+    else
+        sgtitle('UniPolar: Raw PSD for Meditators vs. Control across different protocols, n=30');
+    end
 end
 end
 
 
-function compareMeansAndShowSignificance(data1,data2,axesHandle)
+function compareMeansAndShowSignificance(data1,data2,axesHandle,xLimsRange,yLimsRange,axisLimAuto)
 
 hPlot = axesHandle;
 % set(hPlot,'XTick',[1 3 5 7],'XTickLabel',[1.6 6.25 25 100]);
-yLims= getYLims(hPlot); %max(min([0 inf],getYLims(hPlot)),[-inf 1]);
+yLims= getYLims(hPlot,xLimsRange,yLimsRange,axisLimAuto); %max(min([0 inf],getYLims(hPlot)),[-inf 1]);
 
 %%%%%%%%%%%%%%%%%%%%%%% compare attIn and attOut %%%%%%%%%%%%%%%%%%%%%%%%%%
 dX = 1; dY = diff(yLims)/20;
@@ -157,7 +177,7 @@ if numDays>1
         else
             pColor = 'w';
         end
-        
+
         patchX = contrastIndices(i)-dX/2;
         patchY = yLims(1)-2*dY;
         patchLocX = [patchX patchX patchX+dX patchX+dX];
@@ -172,26 +192,53 @@ end
 
 
 % Rescaling functions
-function yLims = getYLims(plotHandles)
+function yLims = getYLims(plotHandles,xLimsRange,yLimsRange,axisLimAuto)
 
-[numRows,numCols] = size(plotHandles);
-% Initialize
-yMin = inf;
-yMax = -inf;
+if axisLimAuto
+    [numRows,numCols] = size(plotHandles);
+    % Initialize
+    yMin = inf;
+    yMax = -inf;
 
-for row=1:numRows
-    for column=1:numCols
-        % get positions
-        axis(plotHandles(row,column),'tight');
-        tmpAxisVals = axis(plotHandles(row,column));
-        if tmpAxisVals(3) < yMin
-            yMin = tmpAxisVals(3);
-        end
-        if tmpAxisVals(4) > yMax
-            yMax = tmpAxisVals(4);
+    for row=1:numRows
+        for column=1:numCols
+            % get positions
+            axis(plotHandles(row,column),'tight');
+            tmpAxisVals = axis(plotHandles(row,column));
+            if tmpAxisVals(3) < yMin
+                yMin = tmpAxisVals(3);
+            end
+            if tmpAxisVals(4) > yMax
+                yMax = tmpAxisVals(4);
+            end
         end
     end
+    yLims = [yMin yMax];
+else
+    yLims = [yLimsRange(1) yLimsRange(2)];
 end
 
-yLims = [yMin yMax];
 end
+
+function loadFilepath= getFolderName(biPolarFlag,removeIndividualUniqueBadTrials)
+sdParams.folderSourceString = 'D:\Projects\MeditationProjects\MeditationProject2';
+
+saveDataDeafultStr ='subjectWise';
+
+if biPolarFlag
+    saveDataDeafultStr = [saveDataDeafultStr 'Bipolar'];
+    fileName = 'BiPolarGroupedPowerDataPulledAcrossSubjects.mat';
+else
+    saveDataDeafultStr = [saveDataDeafultStr 'Unipolar'];
+    fileName = 'UnipolarGroupedPowerDataPulledAcrossSubjects.mat';
+end
+
+if removeIndividualUniqueBadTrials
+    saveFolderName = [saveDataDeafultStr 'BadTrialIndElec'];
+else
+    saveFolderName = [saveDataDeafultStr 'BadTrialComElec'];
+end
+
+loadFilepath = fullfile(sdParams.folderSourceString,'data','savedData','subjectWiseDataMaster',saveFolderName,fileName);
+end
+
