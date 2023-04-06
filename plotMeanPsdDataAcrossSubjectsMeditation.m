@@ -1,17 +1,21 @@
 %% Working on the code on 5-Apr-23
 % changed the order. first all the flags followed by loading the data
 
-% ToDo:-
+%% ToDo:-
 %-------------------------------------------------------
 % add significance within the plot function---
 % choose signicance test based on the datType flag
 % add appropriate legends
+% make the proper alignment for the code
 
-%----------------Immedietly-----------------------------
+%% ----------------Immedietly-----------------------------
 % difference plots with ErrorBar
 %   - EO1 substract Individual
 %   - EO1 substract common
 % combine data for the possible segments
+
+%% data Informations:
+
 
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%% Fixed variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -24,7 +28,6 @@ gridType = 'EEG';
 capType = 'actiCap64_UOL';
 groupIDs = [{'C'} {'A'}];
 protocolNameList = [{'EO1'}  {'EC1'}  {'G1'}  {'M1a'}  {'M1b'}  {'M1c'} {'G2'}  {'EO2'}  {'EC2'}  {'M2a'} {'M2b'} {'M2c'}];
-numProtocols = length(protocolNameList);
 colorNameGroupsIDs = [{[0 1 0]} {[1 0 0]} {[0 0 1]}];
 
 % get plot handles for 6 electrode group and 12 different conditions
@@ -41,17 +44,28 @@ yLimsRange = [-2 2];
 [~,~,~,electrodeGroupList0,groupNameList0,highPriorityElectrodeNums] = electrodePositionOnGrid(1,gridType,[],capType);
 electrodeGroupList0{6} = highPriorityElectrodeNums;
 groupNameList0{6} = 'highPriority';
-numElecGroups = length(electrodeGroupList0);
+
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%% Load data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 loadFilepath = getFolderName(biPolarFlag,removeIndividualUniqueBadTrials);
 load(loadFilepath);
 
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%% get data Informations:
+numGroups     =  length(groupIDs);
+numProtocols  =  length(protocolNameList);
+numElecGroups =  length(electrodeGroupList0);
+
+numSubjects    = size(powerValStCombinedControl,1);
+numConditions  = size(powerValStCombinedControl,2);
+numFrequencies = size(powerValStCombinedControl,3);
+numElectrodes  = size(powerValStCombinedControl,4);
+
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % get Data and plot
 allMeanPSDs = [];
-freqVals=1:251;
+dataForSignificanceTest = zeros(numGroups,numSubjects,numFrequencies);
+freqVals=1:numFrequencies;
 
 % combine Data
 powerValStCombined{1}=powerValStCombinedControl;
@@ -59,10 +73,14 @@ powerValStCombined{2}=powerValStCombinedAdvanced;
 
 for p=1:numProtocols % Segments: EO1/EC1/........
     for g=1:numElecGroups % Electrode Group
-        for group=1:length(groupIDs) %Control and meditators
+        for group=1:numGroups %Control and meditators
 
             % setting the displayFlags (there should be better way)
-            if g==1 showTitleFlag=1; else  showTitleFlag=0;   end
+            if g==1
+                showTitleFlag=1;
+            else
+                showTitleFlag=0;
+            end
 
             if p==1
                 putElecGroupName = 1;
@@ -85,12 +103,13 @@ for p=1:numProtocols % Segments: EO1/EC1/........
             plotData(epA(g,p),freqVals,data,colorNameGroupsIDs{group},showSEMFlag,showTitleFlag,protocolNameList{p},putElecGroupName,groupNameList0{g},putAxisLabel,xLimsRange,yLimsRange,biPolarFlag,medianFlag)
 
             %-----------------Adding significance to the plot---------------------------------------------------------------------------------
-            %             if group==2
-            %                 data1 = squeeze(dataForTest(1,:,:));
-            %                 data2 = squeeze(dataForTest(2,:,:));
-            %                 axesHandle = epA(g,p);
-            %                 compareMeansAndShowSignificance(data1,data2,axesHandle,xLimsRange,yLimsRange,axisLimAuto)
-            %             end
+            dataForSignificanceTest(group,:,:) = data;
+            if group==2
+                groupControl = squeeze(dataForSignificanceTest(1,:,:));
+                groupAdvance = squeeze(dataForSignificanceTest(2,:,:));
+                axesHandle = epA(g,p);
+                compareMeansAndShowSignificance(groupControl,groupAdvance,axesHandle,xLimsRange,yLimsRange,axisLimAuto)
+            end
         end
     end
 end
@@ -133,7 +152,7 @@ if showTitleFlag
     title(hPlot,titleStr);
 end
 if putElecGroupName
-    text(-120,-0.75,groupName,'FontSize',14,'Rotation',45,'parent',hPlot);
+    text(-80,-0.75,groupName,'FontSize',14,'Rotation',45,'parent',hPlot);
 end
 
 if putAxisLabel
