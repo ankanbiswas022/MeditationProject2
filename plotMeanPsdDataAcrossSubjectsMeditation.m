@@ -1,7 +1,7 @@
 %% Working on the code on 5-Apr-23
 % changed the order. first all the flags followed by loading the data
 
-%% ToDo:-
+%% To Do:-
 %-------------------------------------------------------
 % add significance within the plot function---
 % choose signicance test based on the datType flag
@@ -16,13 +16,15 @@
 
 %% data Informations:
 
-
-
+function plotMeanPsdDataAcrossSubjectsMeditation(medianFlag,biPolarFlag,removeIndividualUniqueBadTrials)
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%% Fixed variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if ~exist('medianFlag','var');                          medianFlag=0;                          end
+if ~exist('biPolarFlag','var');                         biPolarFlag = 1;                       end
+if ~exist('removeIndividualUniqueBadTrials','var');     removeIndividualUniqueBadTrials=0;     end
 % close all
-medianFlag = 0;
-biPolarFlag = 1;
-removeIndividualUniqueBadTrials = 0;
+% medianFlag = 0;
+% biPolarFlag = 1;
+% removeIndividualUniqueBadTrials = 0;
 %-----------------------------------------------------------------
 gridType = 'EEG';
 capType = 'actiCap64_UOL';
@@ -34,7 +36,7 @@ colorNameGroupsIDs = [{[0 1 0]} {[1 0 0]} {[0 0 1]}];
 gridPos=[0.1 0.1 0.85 0.75];
 % figHandle = figure(1);
 epA = getPlotHandles(6,12,gridPos);
-showSEMFlag = 1;
+showSEMFlag = 0;
 putAxisLabel = 0;
 
 axisLimAuto = 0;
@@ -49,17 +51,17 @@ groupNameList0{6} = 'highPriority';
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%% Load data %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 loadFilepath = getFolderName(biPolarFlag,removeIndividualUniqueBadTrials);
-load(loadFilepath);
+data=load(loadFilepath);
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%% get data Informations:
 numGroups     =  length(groupIDs);
 numProtocols  =  length(protocolNameList);
 numElecGroups =  length(electrodeGroupList0);
 
-numSubjects    = size(powerValStCombinedControl,1);
-numConditions  = size(powerValStCombinedControl,2);
-numFrequencies = size(powerValStCombinedControl,3);
-numElectrodes  = size(powerValStCombinedControl,4);
+numSubjects    = size(data.powerValStCombinedControl,1);
+numConditions  = size(data.powerValStCombinedControl,2);
+numFrequencies = size(data.powerValStCombinedControl,3);
+numElectrodes  = size(data.powerValStCombinedControl,4);
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % get Data and plot
@@ -68,8 +70,8 @@ dataForSignificanceTest = zeros(numGroups,numSubjects,numFrequencies);
 freqVals=1:numFrequencies;
 
 % combine Data
-powerValStCombined{1}=powerValStCombinedControl;
-powerValStCombined{2}=powerValStCombinedAdvanced;
+powerValStCombined{1}=data.powerValStCombinedControl;
+powerValStCombined{2}=data.powerValStCombinedAdvanced;
 
 for p=1:numProtocols % Segments: EO1/EC1/........
     for g=1:numElecGroups % Electrode Group
@@ -100,24 +102,25 @@ for p=1:numProtocols % Segments: EO1/EC1/........
             powerValSTCombinedAdvancedLogTransformed = log10(powerValStCombinedThisElecGroup);
             data = squeeze(powerValSTCombinedAdvancedLogTransformed(:,p,:));
 
-            plotData(epA(g,p),freqVals,data,colorNameGroupsIDs{group},showSEMFlag,showTitleFlag,protocolNameList{p},putElecGroupName,groupNameList0{g},putAxisLabel,xLimsRange,yLimsRange,biPolarFlag,medianFlag)
+            plotData(epA(g,p),freqVals,data,colorNameGroupsIDs{group},showSEMFlag,showTitleFlag,protocolNameList{p},putElecGroupName,groupNameList0{g},putAxisLabel,xLimsRange,yLimsRange,biPolarFlag,medianFlag,group,groupIDs)
 
             %-----------------Adding significance to the plot---------------------------------------------------------------------------------
             dataForSignificanceTest(group,:,:) = data;
             if group==2
-                groupControl = squeeze(dataForSignificanceTest(1,:,:));
-                groupAdvance = squeeze(dataForSignificanceTest(2,:,:));
                 axesHandle = epA(g,p);
-                compareMeansAndShowSignificance(groupControl,groupAdvance,axesHandle,xLimsRange,yLimsRange,axisLimAuto)
+                powerControl = squeeze(dataForSignificanceTest(1,:,:));
+                powerAdvance = squeeze(dataForSignificanceTest(2,:,:));
+                compareMeansAndShowSignificance(powerControl,powerAdvance,numFrequencies,axesHandle,xLimsRange,yLimsRange,axisLimAuto)
             end
         end
     end
+end
 end
 
 %%%%%%%%%%%%%%%%%%%%% Helper Functions %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Helper functions:
 
-function plotData(hPlot,xs,data,colorName,showSEMFlag,showTitleFlag,titleStr,putElecGroupName,groupName,putAxisLabel,xLimsRange,yLimsRange,biPolarFlag,medianFlag)
+function plotData(hPlot,xs,data,colorName,showSEMFlag,showTitleFlag,titleStr,putElecGroupName,groupName,putAxisLabel,xLimsRange,yLimsRange,biPolarFlag,medianFlag,group,groupIDs)
 
 if ~exist('showSEMFlag','var');     showSEMFlag = 1;                    end
 
@@ -127,25 +130,32 @@ colorName2 = hsv2rgb(tmp2); % Same color with more saturation
 
 % mData = squeeze(mean(data,1));
 if medianFlag
-    mData = squeeze(median(data,1,"omitnan"));
+    mData = squeeze(median(data,1,'omitnan'));
 else
-    mData = squeeze(mean(data,1,"omitnan"));
+    mData = squeeze(mean(data,1,'omitnan'));
 end
 
 if showSEMFlag
     if medianFlag
-        getLoc = @(g)(squeeze(nanmedian(g,1)));
+        getLoc = @(g)(squeeze(median(g,1),'omitnan'));
         bootStat = bootstrp(1000,getLoc,data);
         sData = std(bootStat);
     else
-        sData = nanstd(data,[],1)/sqrt(size(data,1));
+        sData = std(data,[],1,'omitnan')/sqrt(size(data,1));
     end
     xsLong = [xs fliplr(xs)];
     ysLong = [mData+sData fliplr(mData-sData)];
     patch(xsLong,ysLong,colorName2,'EdgeColor','none','parent',hPlot);
 end
 hold(hPlot,'on');
-plot(hPlot,xs,mData,'color',colorName,'linewidth',1.5);
+
+if putAxisLabel
+    plot(hPlot,xs,mData,'color',colorName,'linewidth',1.5,'displayname',groupIDs{group});
+    %     legend(hPlot,{'C'});
+else
+    plot(hPlot,xs,mData,'color',colorName,'linewidth',1.5);
+end
+
 xlim(hPlot,xLimsRange);
 ylim(hPlot,yLimsRange);
 if showTitleFlag
@@ -170,20 +180,18 @@ end
 end
 
 
-function compareMeansAndShowSignificance(data1,data2,axesHandle,xLimsRange,yLimsRange,axisLimAuto)
+function compareMeansAndShowSignificance(data1,data2,numFrequencies,axesHandle,xLimsRange,yLimsRange,axisLimAuto)
 
 hPlot = axesHandle;
 % set(hPlot,'XTick',[1 3 5 7],'XTickLabel',[1.6 6.25 25 100]);
-yLims= getYLims(hPlot,xLimsRange,yLimsRange,axisLimAuto); %max(min([0 inf],getYLims(hPlot)),[-inf 1]);
+yLims= getYLims(hPlot,yLimsRange,axisLimAuto); %max(min([0 inf],getYLims(hPlot)),[-inf 1]);
 
 %%%%%%%%%%%%%%%%%%%%%%% compare attIn and attOut %%%%%%%%%%%%%%%%%%%%%%%%%%
 dX = 1; dY = diff(yLims)/20;
 numDays = 2;
-numContrasts = 61;
-contrastIndices = 0:numContrasts-1;
-
+freqIndices = 0:numFrequencies-1;
 if numDays>1
-    for i=1:numContrasts
+    for i=1:numFrequencies
         %         [~,p] = ttest2(data1(:,i),data2(:,i));    % for paired sample (parametric)
         [p] = signrank(data1(:,i),data2(:,i));              % for paired sample (non-parametric)
         %         [p] = ranksum(data1(:,11),data2(:,10))    % for non-paired assumtion
@@ -197,21 +205,22 @@ if numDays>1
             pColor = 'w';
         end
 
-        patchX = contrastIndices(i)-dX/2;
+        patchX = freqIndices(i)-dX/2;
         patchY = yLims(1)-2*dY;
         patchLocX = [patchX patchX patchX+dX patchX+dX];
         patchLocY = [patchY patchY+dY patchY+dY patchY];
         patch(patchLocX,patchLocY,pColor,'Parent',hPlot,'EdgeColor',pColor);
     end
 end
-axis(hPlot,[0 numContrasts-1 yLims+[-2*dY 2*dY]]);
+axis(hPlot,[0 numFrequencies-1 yLims+[-2*dY 2*dY]]);
+set(hPlot,'xlim',xLimsRange);
 legend('off');
 % ylabel(hPlot,ylabelStr);
 end
 
 
 % Rescaling functions
-function yLims = getYLims(plotHandles,xLimsRange,yLimsRange,axisLimAuto)
+function yLims = getYLims(plotHandles,yLimsRange,axisLimAuto)
 
 if axisLimAuto
     [numRows,numCols] = size(plotHandles);
@@ -260,4 +269,5 @@ end
 
 loadFilepath = fullfile(sdParams.folderSourceString,'data','savedData','subjectWiseDataMaster',saveFolderName,fileName);
 end
+
 
