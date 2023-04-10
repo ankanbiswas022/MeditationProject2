@@ -108,10 +108,10 @@ badElectrodes.flatPSDElecs = [];
 for i=1:numProtocols
     protocolName=protocolNameList{i};
     badFileName = fullfile(folderSourceString,'data',subjectName,gridType,expDate,protocolName,'segmentedData',['badTrials' badTrialNameStr '.mat']);
-    % display bad electrodes
+    %% display bad electrodes
     if exist(badFileName,'file')
         x=load(badFileName);
-        badTrialsList{i}=x.badTrials;
+        badTrialsList{i} = x.badTrials;
         badElecList{i} = x.badElecs;
         badElectrodes.badImpedanceElecs = cat(1,badElectrodes.badImpedanceElecs,x.badElecs.badImpedanceElecs);
         badElectrodes.noisyElecs = cat(1,badElectrodes.noisyElecs,x.badElecs.noisyElecs);
@@ -487,13 +487,14 @@ end
 % freqValsTF
 
 function [psd,freqVals,psdAllElc,tfPower,timeValsTF,freqValsTF] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,refScheme,capType,trialAvgFlag,tfFlag,badTrials)
+% currenly all the electrods and all the trials are gettin
 
 if ~exist('TFFlag','var') || isempty(tfFlag); tfFlag= 1; end
 if ~exist('badTrials','var') || isempty(tfFlag); badTrials= []; end
 
-timeRange = [-0.25 1.25];
-tapers = [1 1];
-freqRange = [0 100];
+timeRange   = [-0.25 1.25];
+tapers      = [1 1];
+freqRange   = [0 100];
 
 folderExtract = fullfile(folderSourceString,'data',subjectName,gridType,expDate,protocolName,'extractedData');
 folderSegment = fullfile(folderSourceString,'data',subjectName,gridType,expDate,protocolName,'segmentedData');
@@ -544,6 +545,7 @@ else
             e = load(fullfile(folderSegment,'LFP',['elec' num2str(electrodeList(i)) '.mat']));
         end
         params.trialave = 0;  % issue_tbfAB
+        % getting power values for all the trials 
         [psdTMP(i,:,:),freqVals] = mtspectrumc(e.analogData(:,goodTimePos)',params); %#ok<AGROW>
         %         [psdTMP(i,:,:),freqVals] = mtspectrumc(e.analogData(:,goodTimePos)',params); %#ok<AGROW>
         % If TFFlag is ON;
