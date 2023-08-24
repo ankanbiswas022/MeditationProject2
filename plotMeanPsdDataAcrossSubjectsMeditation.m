@@ -16,12 +16,18 @@
 
 %% data Informations:
 
-function plotMeanPsdDataAcrossSubjectsMeditation(medianFlag,biPolarFlag,removeIndividualUniqueBadTrials)
+function plotMeanPsdDataAcrossSubjectsMeditation(medianFlag,biPolarFlag, ...
+    removeIndividualUniqueBadTrials,showDeltaPsdFlag,showSignificanceFlag,showSEMFlag,showRawPsdFlag)
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%% Fixed variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if ~exist('medianFlag','var');                          medianFlag=0;                          end
+if ~exist('medianFlag','var');                          medianFlag = 1;                          end
 if ~exist('biPolarFlag','var');                         biPolarFlag = 1;                       end
-if ~exist('removeIndividualUniqueBadTrials','var');     removeIndividualUniqueBadTrials=0;     end
-% close all
+if ~exist('removeIndividualUniqueBadTrials','var');     removeIndividualUniqueBadTrials = 0;     end
+if ~exist('showSignificanceFlag','var');                showSignificanceFlag = 1;                end
+if ~exist('showSEMFlag','var');                         showSEMFlag = 0;                       end
+if ~exist('showDeltaPsdFlag','var');                    showDeltaPsdFlag = 0;                    end
+if ~exist('showRawPsdFlag','var');                      showRawPsdFlag = 1;                    end
+
+figure('WindowState','maximized');
 % medianFlag = 0;
 % biPolarFlag = 1;
 % removeIndividualUniqueBadTrials = 0;
@@ -29,19 +35,20 @@ if ~exist('removeIndividualUniqueBadTrials','var');     removeIndividualUniqueBa
 gridType = 'EEG';
 capType = 'actiCap64_UOL';
 groupIDs = [{'C'} {'A'}];
-protocolNameList = [{'EO1'}  {'EC1'}  {'G1'}  {'M1a'}  {'M1b'}  {'M1c'} {'G2'}  {'EO2'}  {'EC2'}  {'M2a'} {'M2b'} {'M2c'}];
+protocolNameList = [{'EO1'}  {'EC1'}  {'G1'}  {'M1a'}  {'M1b'}  {'M1c'} ...
+    {'G2'}  {'EO2'}  {'EC2'}  {'M2a'} {'M2b'} {'M2c'}];
 colorNameGroupsIDs = [{[0 1 0]} {[1 0 0]} {[0 0 1]}];
 
 % get plot handles for 6 electrode group and 12 different conditions
 gridPos=[0.1 0.1 0.85 0.75];
 % figHandle = figure(1);
 epA = getPlotHandles(6,12,gridPos);
-showSEMFlag = 0;
+
 putAxisLabel = 0;
 
 axisLimAuto = 0;
 xLimsRange = [0 120];
-yLimsRange = [-2 2];
+yLimsRange = [-0.5 1];
 
 [~,~,~,electrodeGroupList0,groupNameList0,highPriorityElectrodeNums] = electrodePositionOnGrid(1,gridType,[],capType);
 electrodeGroupList0{6} = highPriorityElectrodeNums;
@@ -73,8 +80,12 @@ freqVals=1:numFrequencies;
 powerValStCombined{1}=data.powerValStCombinedControl;
 powerValStCombined{2}=data.powerValStCombinedAdvanced;
 
-for p=1:numProtocols % Segments: EO1/EC1/........
-    for g=1:numElecGroups % Electrode Group
+powerValBlCombined{1}=data.powerValBlCombinedControl;
+powerValBlCombined{2}=data.powerValBlCombinedAdvanced;
+
+
+for g=1:numElecGroups % Electrode Group
+    for p=1:numProtocols % Segments: EO1/EC1/........
         for group=1:numGroups %Control and meditators
 
             % setting the displayFlags (there should be better way)
@@ -93,36 +104,66 @@ for p=1:numProtocols % Segments: EO1/EC1/........
                 putElecGroupName = 0;
                 putAxisLabel = 0;
             end
+            %---------------------------------
+            % delta Psd flag is on only when
+            % for all electrodeGroups
+            % for the first protocol
+            % for the first group
+            %             if group==2
+            %                 computeDeltaPsdFlag=1;
+            %             else
+            %                 computeDeltaPsdFlag=0;
+            %             end
+            computeDeltaPsdFlag=1;
 
             %------------------------------the main code-------------------------------------------------------------------
             electrodeList = electrodeGroupList0{g};
             % g across the selected electrodes in the raw power Domain
             powerValStCombinedThisElecGroup = mean(powerValStCombined{group}(:,:,:,electrodeList),4,'omitnan');
+            powerValBlCombinedThisElecGroup = mean(powerValBlCombined{group}(:,:,:,electrodeList),4,'omitnan');
             % log transform the values
-            powerValSTCombinedAdvancedLogTransformed = log10(powerValStCombinedThisElecGroup);
-            data = squeeze(powerValSTCombinedAdvancedLogTransformed(:,p,:));
+            powerValSTCombinedThisGroupLogTransformed = log10(powerValStCombinedThisElecGroup);
+            powerValBlCombinedThisGroupLogTransformed = log10(powerValBlCombinedThisElecGroup);
+            data = squeeze(powerValSTCombinedThisGroupLogTransformed(:,p,:)); %-squeeze(powerValBlCombinedThisGroupLogTransformed(:,p,:));
 
-            plotData(epA(g,p),freqVals,data,colorNameGroupsIDs{group},showSEMFlag,showTitleFlag,protocolNameList{p},putElecGroupName,groupNameList0{g},putAxisLabel,xLimsRange,yLimsRange,biPolarFlag,medianFlag,group,groupIDs)
+            if computeDeltaPsdFlag && p==1
+                commonBaseLine=getCommonBaseline(data,medianFlag);
+            end
+
+            plotData(epA(g,p),freqVals,data,colorNameGroupsIDs{group},showSEMFlag, ...
+                showTitleFlag,protocolNameList{p},putElecGroupName,groupNameList0{g},putAxisLabel, ...
+                xLimsRange,yLimsRange,biPolarFlag,medianFlag,group, ...
+                groupIDs,showDeltaPsdFlag,commonBaseLine,showRawPsdFlag);
 
             %-----------------Adding significance to the plot---------------------------------------------------------------------------------
-            dataForSignificanceTest(group,:,:) = data;
-            if group==2
-                axesHandle = epA(g,p);
-                powerControl = squeeze(dataForSignificanceTest(1,:,:));
-                powerAdvance = squeeze(dataForSignificanceTest(2,:,:));
-                compareMeansAndShowSignificance(powerControl,powerAdvance,numFrequencies,axesHandle,xLimsRange,yLimsRange,axisLimAuto)
+            if showSignificanceFlag
+                dataForSignificanceTest(group,:,:) = data;
+                if group==2
+                    axesHandle = epA(g,p);
+                    powerControl = squeeze(dataForSignificanceTest(1,:,:));
+                    powerAdvance = squeeze(dataForSignificanceTest(2,:,:));
+                    compareMeansAndShowSignificance(powerControl,powerAdvance,numFrequencies, ...
+                        axesHandle,xLimsRange,yLimsRange,axisLimAuto)
+                end
             end
         end
     end
 end
 end
 
-%%%%%%%%%%%%%%%%%%%%% Helper Functions %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%% Helper Functions %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Helper functions:
 
-function plotData(hPlot,xs,data,colorName,showSEMFlag,showTitleFlag,titleStr,putElecGroupName,groupName,putAxisLabel,xLimsRange,yLimsRange,biPolarFlag,medianFlag,group,groupIDs)
+function plotData(hPlot,freqVals,data,colorName,showSEMFlag, ...
+    showTitleFlag,titleStr,putElecGroupName,groupName,putAxisLabel, ...
+    xLimsRange,yLimsRange,biPolarFlag,medianFlag,group, ...
+    groupIDs,showDeltaPsdFlag,commonBaseLine,showRawPsdFlag)
 
-if ~exist('showSEMFlag','var');     showSEMFlag = 1;                    end
+
+hold(hPlot,'on');
+yline(hPlot,0,'--');
+xline(hPlot,20,'--');
+xline(hPlot,34,'--');
 
 tmp=rgb2hsv(colorName);
 tmp2 = [tmp(1) tmp(2)/3 tmp(3)];
@@ -135,6 +176,23 @@ else
     mData = squeeze(mean(data,1,'omitnan'));
 end
 
+%% Main Plot function
+if showRawPsdFlag
+    if putAxisLabel
+        plot(hPlot,freqVals,mData,'color',colorName,'linewidth',1.5,'displayname',groupIDs{group});
+        %     legend(hPlot,{'C'});
+    else
+        plot(hPlot,freqVals,mData,'color',colorName,'linewidth',0.5);
+    end
+end
+
+if showDeltaPsdFlag %&& group==2
+    deltaPsd = (mData-commonBaseLine);
+    plot(hPlot,freqVals,deltaPsd,'color',colorName,'linewidth',1.5);
+end
+
+%% Other flags
+
 if showSEMFlag
     if medianFlag
         getLoc = @(g)(squeeze(median(g,1),'omitnan'));
@@ -143,26 +201,17 @@ if showSEMFlag
     else
         sData = std(data,[],1,'omitnan')/sqrt(size(data,1));
     end
-    xsLong = [xs fliplr(xs)];
+    xsLong = [freqVals fliplr(freqVals)];
     ysLong = [mData+sData fliplr(mData-sData)];
     patch(xsLong,ysLong,colorName2,'EdgeColor','none','parent',hPlot);
 end
-hold(hPlot,'on');
 
-if putAxisLabel
-    plot(hPlot,xs,mData,'color',colorName,'linewidth',1.5,'displayname',groupIDs{group});
-    %     legend(hPlot,{'C'});
-else
-    plot(hPlot,xs,mData,'color',colorName,'linewidth',1.5);
-end
-
-xlim(hPlot,xLimsRange);
-ylim(hPlot,yLimsRange);
 if showTitleFlag
     title(hPlot,titleStr);
 end
+
 if putElecGroupName
-    text(-80,-0.75,groupName,'FontSize',14,'Rotation',45,'parent',hPlot);
+    text(-90,-0.75,groupName,'FontSize',14,'Rotation',45,'parent',hPlot);
 end
 
 if putAxisLabel
@@ -172,11 +221,16 @@ if putAxisLabel
     %     legend(hPlot,'Con','Med');
     if biPolarFlag
         sgtitle('Bipolar: Raw PSD for Meditators vs. Control across different protocols, n=30');
-        %     xline(hPlot,24);
     else
         sgtitle('UniPolar: Raw PSD for Meditators vs. Control across different protocols, n=30');
     end
 end
+
+xlim(hPlot,xLimsRange);
+ylim(hPlot,yLimsRange);
+% if group==2
+%     hold(hPlot,'off');
+% end
 end
 
 
@@ -270,4 +324,11 @@ end
 loadFilepath = fullfile(sdParams.folderSourceString,'data','savedData','subjectWiseDataMaster',saveFolderName,fileName);
 end
 
+function commonBaseLine= getCommonBaseline(data,medianFlag)
+if medianFlag
+    commonBaseLine=median(data,1,'omitnan');
+else
+    commonBaseLine=mean(data,1,'omitnan');
+end
+end
 
