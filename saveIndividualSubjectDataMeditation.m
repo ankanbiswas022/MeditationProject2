@@ -38,18 +38,19 @@ function saveIndividualSubjectDataMeditation(subjectName,expDate,sdParams)
 % adding flag remove bad trils from individual electrodes!
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Unwarpping input paramters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-folderSourceString          = sdParams.folderSourceString;
-% saveDataFolder            = sdParams.saveDataFolder;
-saveFileName                = sdParams.saveFileName;
+folderSourceString              = sdParams.folderSourceString;
+% saveDataFolder                = sdParams.saveDataFolder;
+saveFileName                    = sdParams.saveFileName;
 
-badTrialNameStr             = sdParams.badTrialNameStr;
-badElectrodeRejectionFlag   = sdParams.badElectrodeRejectionFlag ; % 1: saves all the electrodes, 2: rejects individual protocolwise 3: rejects common across all protocols
-logTransformFlag            = sdParams.logTransformFlag; % saves log Transformed PSD if 'on'
-saveDataFlag                = sdParams.saveDataFlag; % if 1, saves the data
-% eegElectrodeList = sdParams.eegElectrodeList;
-freqRange                   = sdParams.freqRange;
-biPolarFlag                 = sdParams.biPolarFlag;
-% removeIndividualUniqueBadTrials = sdParams.removeIndividualUniqueBadTrials;
+badTrialNameStr                 = sdParams.badTrialNameStr;
+badElectrodeRejectionFlag       = sdParams.badElectrodeRejectionFlag ; % 1: saves all the electrodes, 2: rejects individual protocolwise 3: rejects common across all protocols
+logTransformFlag                = sdParams.logTransformFlag; % saves log Transformed PSD if 'on'
+saveDataFlag                    = sdParams.saveDataFlag; % if 1, saves the data
+% eegElectrodeList              = sdParams.eegElectrodeList;
+freqRange                       = sdParams.freqRange;
+biPolarFlag                     = sdParams.biPolarFlag;
+removeDeclaredflatPSDElecS      = sdParams.removeVisualInspectedElecs;
+removeIndividualUniqueBadTrials = sdParams.removeIndividualUniqueBadTrials;
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Input Check %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -68,11 +69,12 @@ if ~exist('removeIndividualUniqueBadTrials','var'); removeIndividualUniqueBadTri
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Fixed variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 gridType = 'EEG';
-removeIndividualUniqueBadTrials=1;
+% removeIndividualUniqueBadTrials=1;
 
 % We have total 8 protocols. M1 and M2 is segmented to create M1a,M1b,M1c
 % and M2a,M2b,M2c respectively.
 segmentNameList = [{'EO1'} {'EC1'} {'G1'} {'M1a'} {'M1b'} {'M1c'} {'G2'} {'EO2'} {'EC2'} {'M2a'} {'M2b'} {'M2c'}];
+% segmentNameList = [{'EO1'} {'EC1'} {'G1'}];
 numSegments = length(segmentNameList);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialization %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -81,9 +83,18 @@ badElecList = cell(1,numSegments);
 badElectrodes.badImpedanceElecs = [];
 badElectrodes.noisyElecs = [];
 badElectrodes.flatPSDElecs = [];
+badElectrodes.declaredflatPSDElecs = [];
 
 for s=1:numSegments
     segmentName=segmentNameList{s};
+    
+    % 
+    if s>3
+        removeDeclaredflatPSDElecS=0;
+    else
+        removeDeclaredflatPSDElecS=1;
+    end
+
     % for sub-segments M1a,M1b,M1c, loads the same badTrial file as M1/M2
     if contains(segmentName,'M1')
         segmentName='M1';
@@ -96,10 +107,14 @@ for s=1:numSegments
         % temp saving bad trials and bad elecs per protocol
         allBadTrialsList{s} = x.allBadTrials; %1.1c: getting badtrials unique to the electrode
         badTrialsList{s} = x.badTrials;
-        badElecList{s} = x.badElecs;
+        badElecList{s}   = x.badElecs;
+
         badElectrodes.badImpedanceElecs = cat(1,badElectrodes.badImpedanceElecs,x.badElecs.badImpedanceElecs);
         badElectrodes.noisyElecs = cat(1,badElectrodes.noisyElecs,x.badElecs.noisyElecs);
         badElectrodes.flatPSDElecs = cat(1,badElectrodes.flatPSDElecs,x.badElecs.flatPSDElecs);
+        if removeDeclaredflatPSDElecS
+            badElectrodes.declaredflatPSDElecs = cat(1,badElectrodes.declaredflatPSDElecs,x.badElecs.declaredflatPSDElectrodes);
+        end
     else
         badTrialsList{s} = [];
         badElecList{s} = [];
@@ -143,12 +158,12 @@ for t=1:numTimeRange
         if badElectrodeRejectionFlag==1
             electrodeList = allElectrodeList;
         elseif badElectrodeRejectionFlag==2
-            electrodeList = setdiff(allElectrodeList,getAllBadElecs(badElecList{p}));
+            electrodeList = setdiff(allElectrodeList,getAllBadElecs(badElecList{p},removeDeclaredflatPSDElecS));
         elseif badElectrodeRejectionFlag==3
-            electrodeList = setdiff(allElectrodeList,getAllBadElecs(badElectrodes));
+            electrodeList = setdiff(allElectrodeList,getAllBadElecs(badElectrodes,removeDeclaredflatPSDElecS));
         end
         numGoodElectrodesList(p) = length(electrodeList);
-        badElecIndexThisProtocol = getAllBadElecs(badElecList{p});
+        badElecIndexThisProtocol = getAllBadElecs(badElecList{p},removeDeclaredflatPSDElecS);
 
         % uses local sub-function 'getData' for getting the power data
         if ~isempty(electrodeList)
@@ -189,9 +204,13 @@ end % the main function end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Sub-functions %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function allBadElecs = getAllBadElecs(badElectrodes)
+function allBadElecs = getAllBadElecs(badElectrodes,removeDeclaredflatPSDElecS)
 % combines different types of bad electrodes
-allBadElecs = [badElectrodes.badImpedanceElecs; badElectrodes.noisyElecs; badElectrodes.flatPSDElecs];
+if removeDeclaredflatPSDElecS
+    allBadElecs = [badElectrodes.badImpedanceElecs; badElectrodes.noisyElecs; badElectrodes.flatPSDElecs; badElectrodes.declaredflatPSDElectrodes];
+else
+    allBadElecs = [badElectrodes.badImpedanceElecs; badElectrodes.noisyElecs; badElectrodes.flatPSDElecs];
+end
 end
 
 function [meanPSDVals,freqVals] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,freqRange,timeRange,trialIndexS,logTransformFlag,biPolarFlag,removeIndividualUniqueBadTrials,allBadTrialsListElecWise,badTrialsList)
@@ -255,11 +274,10 @@ else
             badTrialsFirstElec = allBadTrialsListElecWise{analogElecs(1)};
             badTrialsSecondElec = allBadTrialsListElecWise{analogElecs(2)};
             commonBadTrials = union(badTrialsFirstElec,badTrialsSecondElec);
-           
         else
             commonBadTrials = allBadTrialsListElecWise{i};
         end
-         meanPSDVals = mean(psd(:,:,setdiff(1:size(psd,3),commonBadTrials)),3); % dont remove the bad trials as it has already been removed.     
+        meanPSDVals = mean(psd(:,:,setdiff(1:size(psd,3),commonBadTrials)),3); % dont remove the bad trials as it has already been removed.
     else
         meanPSDVals = mean(psd(:,:,setdiff(1:size(psd,3),badTrialsList)),3);
     end
