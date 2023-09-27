@@ -1,14 +1,16 @@
-% Central Data saving code fo rthe meditation Subject
+% Central Data saving code for the meditation Subject
 % Ankan
-% Target Completion: 5.30-8.30 am (Max)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% load the subject list
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% load the subject list: load the data
 sourcePath = 'N:\Projects\MeditationProjects\MeditationProject2\Codes\codesUnderDevelopment\UpdatedPrograms\badSubjectCodes';
-fileName = 'SubjectListV1.mat';
+fileName   = 'MeditationProjectSubjectListAC.mat';
 load(fullfile(sourcePath,fileName),'allMatchedSubjectList');
+allSubjectListAC = allMatchedSubjectList(:);
+emptyCells = cellfun(@isempty,allSubjectListAC(:,1));
+allSubjectListAC(emptyCells) = [];
 
-% get the Indexes of the matched subject
-
+% Alternatively, we can get this directly from the following:
+% Get the Indexes of the matched subject
 [subjectNames,expDates] = subjectDatabaseMeditationProject2;
 allIndexes=[];
 for i=1:length(allMatchedSubjectList)
@@ -22,7 +24,7 @@ end
 allMatchedSubjectIndex = allIndexes';
 saveTheseIndices = allMatchedSubjectIndex(1:end);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% wrapping flags and input parameters
 sdParams.folderSourceString = 'D:\Projects\MeditationProjects\MeditationProject2';
@@ -48,7 +50,6 @@ else
 end
 sdParams.saveDataFolder = fullfile(sdParams.folderSourceString,'data','savedData',saveFolderName);
 saveFileNameDeafultStr = ['_unipolar_stRange_250_1250' sdParams.badTrialNameStr '.mat'] ;
-
 
 % Not extracted 46
 
