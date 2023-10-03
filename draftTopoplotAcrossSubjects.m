@@ -8,7 +8,7 @@
 biPolarFlag                     = 0;
 removeVisualInspectedElecs      = 0;
 changeInPowerFlag               = 0;
-removeIndividualUniqueBadTrials = 1;
+removeIndividualUniqueBadTrials = 0;
 
 % New functionalities:
 groupAndSaveTopoPlotData = 0;
@@ -63,11 +63,15 @@ for i=1:length(saveTheseIndices) % for each subject
 
     powerValST_Mod        = zeros(8,251,64);
 
-    powerValST_M1         = squeeze(mean(powerValST(4:6,:,:),1));
-    powerValST_M2         = squeeze(mean(powerValST(10:12,:,:),1));
+    powerValST_M1         = squeeze(mean(powerValST(4:6,:,:),1,"omitnan"));
+    powerValST_M2         = squeeze(mean(powerValST(10:12,:,:),1,"omitnan"));
 
     powerValST_Mod(4,:,:) = powerValST_M1;
     powerValST_Mod(8,:,:) = powerValST_M2;
+
+    %%
+    test=cat(1,powerValST(1,:,:),powerValBL(1,:,:));
+    powerValST_Mod(1,:,:) = mean([squeeze(powerValST(1,:,:));squeeze(powerValBL(1,:,:))],1);
 
     powerValST_Mod(1:3,:,:) = powerValST(1:3,:,:); % direct assignment
     powerValST_Mod(5:7,:,:) = powerValST(7:9,:,:);
@@ -133,7 +137,7 @@ for i=1:length(saveTheseIndices) % for each subject
                     case 3
                         dataforTopoplot = rawMeanFastGThisElec(si,:);
                 end
-
+                
                 % dataforTopoplot = rawMeanSlowGThisElec(si,:);
                 capType = 'actiCap64_UOL';
                 montagePath = 'D:\Programs\ProgramsMAP\Montages\Layouts\actiCap64_UOL';
@@ -151,6 +155,6 @@ for i=1:length(saveTheseIndices) % for each subject
             end
         end
     end
-    %%%%%%%%%%%%%%%%%%%%% End: Plotting topoplot%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%% End-Plotting topoplot%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     clf
 end
