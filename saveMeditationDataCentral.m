@@ -6,16 +6,20 @@ sourcePath = 'N:\Projects\MeditationProjects\MeditationProject2\Codes\codesUnder
 fileName   = 'MeditationProjectSubjectListAC.mat';
 load(fullfile(sourcePath,fileName),'allMatchedSubjectList');
 allSubjectListAC = allMatchedSubjectList(:);
-emptyCells = cellfun(@isempty,allSubjectListAC(:,1));
+emptyCells  = cellfun(@isempty,allSubjectListAC(:,1));
+
+badSubIndex = find(strcmp(allSubjectListAC,'099SP')); %badSubject
+emptyCells(badSubIndex)=1;
+
 allSubjectListAC(emptyCells) = [];
 
 % Alternatively, we can get this directly from the following:
 % Get the Indexes of the matched subject
 [subjectNames,expDates] = subjectDatabaseMeditationProject2;
 allIndexes=[];
-for i=1:length(allMatchedSubjectList)
-    strToFind = allMatchedSubjectList{i};
-    disp(allMatchedSubjectList{i});
+for i=1:length(allSubjectListAC)
+    strToFind = allSubjectListAC{i};
+    disp(allSubjectListAC{i});
     ind=find(strcmp(strToFind,subjectNames));
     disp(ind);
     allIndexes = [allIndexes ind];
@@ -53,7 +57,7 @@ saveFileNameDeafultStr = ['_unipolar_stRange_250_1250' sdParams.badTrialNameStr 
 
 % Not extracted 46
 
-for i=47:length(saveTheseIndices)
+for i=1:length(saveTheseIndices)
     subjectName = subjectNames{saveTheseIndices(i)};
     disp(['Working on the '  subjectName]);
     expDate = expDates{saveTheseIndices(i)};
@@ -61,7 +65,3 @@ for i=47:length(saveTheseIndices)
     sdParams.saveFileName = [subjectName saveFileNameDeafultStr];
     saveIndividualSubjectDataMeditationProtocolWise(subjectName,expDate,sdParams);
 end
-
-
-
-
