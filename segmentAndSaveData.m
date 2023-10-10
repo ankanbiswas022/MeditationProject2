@@ -10,7 +10,7 @@
 % 3. G1  (Gamma 1): Duration: 5 minutes. 
 % 4. M1  (Meditation 1): Duration: 15 minutes.
 % 5. G2 (Gamma 2): Same as G1
-% 6. EO2 (eyes open 2): Same as EO1
+% 6. EO2 (eyes open 2): Same as EO1 ,
 % 7. EC2 (eyes close 2): Same as EC2
 % 8. M2 (Meditation 2): Duration: 15 minutes - same as M1 but with gamma
 % protocol running 
@@ -26,9 +26,10 @@ if isempty(folderSourceString)
 end
 
 gridType = 'EEG';
-protocolNameList = [{'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}];
+% protocolNameList = [{'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}];
 % protocolNameList = [ {'EO2'} {'EC2'} {'M2'} ];
 % protocolNameList = {'EC2'};
+protocolNameList =  {'M2'};
 
 timeStartFromBaseLine = -1.25; deltaT = 2.5;
 
