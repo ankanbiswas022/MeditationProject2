@@ -74,7 +74,6 @@ gridType = 'EEG';
 % We have total 8 protocols. M1 and M2 is segmented to create M1a,M1b,M1c
 % and M2a,M2b,M2c respectively.
 segmentNameList = [{'EO1'} {'EC1'} {'G1'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2'}];
-% segmentNameList = [{'EO1'} {'EC1'} {'G1'}];
 numSegments = length(segmentNameList);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialization %%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -166,9 +165,9 @@ for p=1:numSegments
 
         % stores the power data in different variables for the 'BL' and 'ST' period
         if t==1
-            blPowerVsFreqTopo = meanPSDVals{p}';
+            blPowerVsFreqTopo = meanPSDVals{p};
         else
-            stPowerVsFreqTopo = meanPSDVals{p}';
+            stPowerVsFreqTopo = meanPSDVals{p};
         end
     end
     if saveDataFlag % save data for the current subject
