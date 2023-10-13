@@ -37,9 +37,13 @@ function saveIndividualSubjectDataMeditation(subjectName,expDate,sdParams)
 % Remove the remove the bad trials (from individual electrodes)
 % adding flag remove bad trils from individual electrodes!
 
+% Updates 11/09/23:
+% First optimize the code to unify the loop
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Unwarpping input paramters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 folderSourceString              = sdParams.folderSourceString;
-% saveDataFolder                = sdParams.saveDataFolder;
+saveDataFolder                  = sdParams.saveDataFolder;
 saveFileName                    = sdParams.saveFileName;
 
 badTrialNameStr                 = sdParams.badTrialNameStr;
@@ -51,7 +55,8 @@ freqRange                       = sdParams.freqRange;
 biPolarFlag                     = sdParams.biPolarFlag;
 removeDeclaredflatPSDElecS      = sdParams.removeVisualInspectedElecs;
 removeIndividualUniqueBadTrials = sdParams.removeIndividualUniqueBadTrials;
-
+saveDataFlagProtocolwise        = sdParams.saveDataFlagProtocolwise;
+saveFileNameProtocolWise        = sdParams.saveFileNameProtocolWise;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Input Check %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if nargin < 2; error('Needs Subject Name and experimetent Date'); end
@@ -67,33 +72,28 @@ if ~exist('saveFileName','var');                    saveFileName=[];            
 if ~exist('biPolarFlag','var');                     biPolarFlag=0;                      end
 if ~exist('removeIndividualUniqueBadTrials','var'); removeIndividualUniqueBadTrials=0;  end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Fixed variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialization %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 gridType = 'EEG';
 % removeIndividualUniqueBadTrials=1;
 
 % We have total 8 protocols. M1 and M2 is segmented to create M1a,M1b,M1c
 % and M2a,M2b,M2c respectively.
-segmentNameList = [{'EO1'} {'EC1'} {'G1'} {'M1a'} {'M1b'} {'M1c'} {'G2'} {'EO2'} {'EC2'} {'M2a'} {'M2b'} {'M2c'}];
-% segmentNameList = [{'EO1'} {'EC1'} {'G1'}];
+segmentNameList = [{'EO1'} {'EC1'} {'G1'} {'M1a'} {'M1b'} {'M1c'} {'M1'} {'G2'} {'EO2'} {'EC2'} {'M2a'} {'M2b'} {'M2c'} {'M2'}];
+% segmentNameList = [{'M1a'} {'M1b'} {'M1c'} {'M1'}];
 numSegments = length(segmentNameList);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Initialization %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% -----------------------------------------------Getting the bad trials-----------------------------------------------------------------------------------------------
+
 badTrialsList = cell(1,numSegments);
 badElecList = cell(1,numSegments);
 badElectrodes.badImpedanceElecs = [];
 badElectrodes.noisyElecs = [];
 badElectrodes.flatPSDElecs = [];
 badElectrodes.declaredflatPSDElecs = [];
+removeDeclaredflatPSDElecS=0;
 
 for s=1:numSegments
     segmentName=segmentNameList{s};
-    
-    % 
-    if s>3
-        removeDeclaredflatPSDElecS=0;
-    else
-        removeDeclaredflatPSDElecS=1;
-    end
 
     % for sub-segments M1a,M1b,M1c, loads the same badTrial file as M1/M2
     if contains(segmentName,'M1')
@@ -126,25 +126,27 @@ badElectrodes.badImpedanceElecs = unique(badElectrodes.badImpedanceElecs);
 badElectrodes.noisyElecs = unique(badElectrodes.noisyElecs);
 badElectrodes.flatPSDElecs = unique(badElectrodes.flatPSDElecs);
 
+%% -----------------------------------------------Getting the data-----------------------------------------------------------------------------------------------
 % get data across protocols:
 
 timeRangeStrings = {'BL','ST'};
 numTimeRange = length(timeRangeStrings);
 
 timeRangeS = {[-1 0],[0.25 1.25]}; % baseLine and stimulus timePeriods
-trialIndexesForSubSegments = {(1:120),(121:240),(241:360)};
+trialIndexesForSubSegments = {(1:120),(121:240),(241:360),(1:360)};
 
 psdVals = cell(1,numSegments);
 meanPSDVals = cell(1,numSegments);
-meanPSDValsReshaped = [];
+meanPSDValsAllProtocols = [];
 freqVals = cell(1,numSegments);
 numGoodElectrodesList = zeros(1,numSegments);
+numGoodTrialsAllProtocols = [];
+segmentIndex=1; % default segment
 
-for t=1:numTimeRange
-    timeRange = timeRangeS{t};
-    segmentIndex=1; %default segment
+for p=1:numSegments
+    for t=1:numTimeRange
 
-    for p=1:numSegments
+        timeRange = timeRangeS{t};
         segmentName = segmentNameList{p};
         trialIndexes = trialIndexesForSubSegments{segmentIndex};
 
@@ -167,42 +169,57 @@ for t=1:numTimeRange
 
         % uses local sub-function 'getData' for getting the power data
         if ~isempty(electrodeList)
-            disp(['Extracting data of ''' segmentName ''' segment, for the ''' timeRangeStrings{t} ''' period']);
+            disp(['Extracting data of ''' segmentNameList{p} ''' segment, for the ''' timeRangeStrings{t} ''' period']);
             disp(['for trials- ' num2str(trialIndexes(1)) ':' num2str(trialIndexes(end))]);
 
             % getting the mean data across trials
-            [meanPSDVals{p},freqVals] = getData(subjectName,expDate,segmentName,folderSourceString,gridType,allElectrodeList,freqRange,timeRange,trialIndexes,logTransformFlag,biPolarFlag,removeIndividualUniqueBadTrials,allBadTrialsList{p},badTrialsList{p});
+            [meanPSDVals{p},freqVals,numGoodTrials,timeVals] = getData(subjectName,expDate,segmentName,folderSourceString,gridType,allElectrodeList,freqRange,timeRange,trialIndexes,logTransformFlag,biPolarFlag,removeIndividualUniqueBadTrials,allBadTrialsList{p},badTrialsList{p});
 
             % assigning the electrodes as NaN
             meanPSDVals{p}(badElecIndexThisProtocol,:) = NaN;
-            meanPSDValsReshaped(p,:,:) = meanPSDVals{p}';
+            meanPSDValsAllProtocols(p,:,:) = meanPSDVals{p}';
+            numGoodTrialsAllProtocols(p,:) =numGoodTrials;
         end
 
-        % conditions for M segments
-        % changing 'medSegmentIndex' to select the particular trial-block
-        if contains(segmentName,'M') && segmentIndex<4
-            segmentIndex = segmentIndex+1;
-            if segmentIndex == 4 % switch back to the default value
-                segmentIndex = 1;
-            end
+
+
+        % stores the power data in different variables for the 'BL' and 'ST' period
+        if t==1
+            blPowerVsFreqTopo = meanPSDVals{p};
+            powerValBL = meanPSDValsAllProtocols;
+        else
+            stPowerVsFreqTopo = meanPSDVals{p};
+            powerValST = meanPSDValsAllProtocols;
         end
     end
 
-    % stores the power data in different variables for the 'BL' and 'ST' period
-    if t==1
-        powerValBL = meanPSDValsReshaped;
-    else
-        powerValST = meanPSDValsReshaped;
+    % conditions for M segments
+    % changing 'medSegmentIndex' to select the particular trial-block
+    if contains(segmentName,'M') && segmentIndex<5
+        segmentIndex = segmentIndex+1;
+        if segmentIndex == 5 % switch back to the default value
+            segmentIndex = 1;
+        end
+    end
+
+    if saveDataFlagProtocolwise % save data for the current subject
+        disp(['Saving the Power data for ' subjectName ' for ' segmentNameList{p}]);
+        dirName = fullfile(saveDataFolder,segmentNameList{p});
+        if ~exist(dirName, 'dir')
+            mkdir(dirName);
+        end
+        fileNameToSave = fullfile(saveDataFolder,segmentNameList{p},saveFileNameProtocolWise);
+        save(fileNameToSave,'blPowerVsFreqTopo','stPowerVsFreqTopo','freqVals',"timeVals","numGoodTrials");
     end
 end
 
 if saveDataFlag % save data for the current subject
     disp(['Saving the Power data for ' subjectName]);
-    save(saveFileName,'powerValBL','powerValST','freqVals');
+    save(saveFileName,'powerValBL','powerValST','freqVals',"timeVals",'numGoodTrialsAllProtocols');
 end
 end % the main function end
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Sub-functions %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%% Sub-functions %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function allBadElecs = getAllBadElecs(badElectrodes,removeDeclaredflatPSDElecS)
 % combines different types of bad electrodes
@@ -213,7 +230,7 @@ else
 end
 end
 
-function [meanPSDVals,freqVals] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,freqRange,timeRange,trialIndexS,logTransformFlag,biPolarFlag,removeIndividualUniqueBadTrials,allBadTrialsListElecWise,badTrialsList)
+function [meanPSDVals,freqVals,numGoodTrials,timeVals] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,freqRange,timeRange,trialIndexS,logTransformFlag,biPolarFlag,removeIndividualUniqueBadTrials,allBadTrialsListElecWise,badTrialsList)
 % get the mean PSD values for each individual subjects
 if biPolarFlag==1
     capType=  'actiCap64_UOL';
@@ -278,8 +295,10 @@ else
             commonBadTrials = allBadTrialsListElecWise{i};
         end
         meanPSDVals = mean(psd(:,:,setdiff(1:size(psd,3),commonBadTrials)),3); % dont remove the bad trials as it has already been removed.
+        numGoodTrials = length(setdiff(1:size(psd,3),badTrialsList));
     else
         meanPSDVals = mean(psd(:,:,setdiff(1:size(psd,3),badTrialsList)),3);
+        numGoodTrials = length(setdiff(1:size(psd,3),badTrialsList));
     end
 end
 end
