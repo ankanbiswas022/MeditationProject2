@@ -3,15 +3,16 @@ function [subjectNames,expDates] = subjectDatabaseMeditationProject2
 % classifying the subjects accordingly
 % goodsubject list (based on Gamma)
 % goodsubject list criterion
-% 
-i=1; subjectNames{i} = '001K'; expDates{i} = '300921'; 
-i=2; subjectNames{i} = '002S'; expDates{i} = '081021'; 
+% updated on 9th Feb' 2023 (local copy in sync with the network copy)
+
+i=1; subjectNames{i} = '001K';   expDates{i} = '300921'; 
+i=2; subjectNames{i} = '002S';   expDates{i} = '081021'; 
 %---------------------------------------------------------------------------------------------------
-i=3; subjectNames{i} = '003S'; expDates{i} = '221021';   % new trial duraration of 2.5 s (extracted)
+i=3; subjectNames{i} = '003S';   expDates{i} = '221021';   % new trial duraration of 2.5 s (extracted)
 %---------------------------------------------------------------------------------------------------
-i=4; subjectNames{i} = '004P';  expDates{i}  = '050122'; % (extracted)
-i=5; subjectNames{i} = '006SR'; expDates{i}  = '070122'; % (extracted)
-i=6; subjectNames{i} = '007CG';  expDates{i} = '070122'; % (extracted)
+i=4; subjectNames{i} = '004P';   expDates{i}  = '050122'; % (extracted)
+i=5; subjectNames{i} = '006SR';  expDates{i}  = '070122'; % (extracted)
+i=6; subjectNames{i} = '007CG';  expDates{i} = '070122';  % (extracted)
 i=7; subjectNames{i} = '008RS';  expDates{i} = '100122'; 
 %---------------------------------------------------------------------------------------------------
 i=8; subjectNames{i} = '009UA';  expDates{i} = '100122'; % 
@@ -114,7 +115,7 @@ i=77; subjectNames{i} = '077LK';      expDates{i} = '161022';  %
 i=78; subjectNames{i} = '078BM';      expDates{i} = '191022';  %
 i=79; subjectNames{i} = '079SG';      expDates{i} = '141122';  %
 i=80; subjectNames{i} = '080RP';      expDates{i} = '181122';  %
-i=81; subjectNames{i} = '081SN';      expDates{i} = '241122';  % To be changed in the questionares
+i=81; subjectNames{i} = '081SN';      expDates{i} = '241122';  % to be changed in the questionares
 i=82; subjectNames{i} = '082MS';      expDates{i} = '241122';  %
 i=83; subjectNames{i} = '083SP';      expDates{i} = '251122';  %
 i=84; subjectNames{i} = '084AK';      expDates{i} = '261122';  %
@@ -133,7 +134,16 @@ i=91; subjectNames{i} = '091SB';      expDates{i} = '101222';  % fixed @Ankan @2
 i=92; subjectNames{i} = '092KB';      expDates{i} = '111222';  %
 i=93; subjectNames{i} = '093AK';      expDates{i} = '121222';  %
 %-----------------------------------------------------------------------------
-i=94; subjectNames{i} = '095KM';      expDates{i} = '171222';  %
-i=95; subjectNames{i} = '096MS';      expDates{i} = '181222';  %
+i=94; subjectNames{i} = '094SR';      expDates{i} = '151222';  %
+i=95; subjectNames{i} = '095KM';      expDates{i} = '171222';  %
+i=96; subjectNames{i} = '096MS';      expDates{i} = '181222';  %
+%-------------------------------------------------------------------------
+% to be extracted on 090223:
+i=97; subjectNames{i} = '097SV';      expDates{i} = '060123';  %
+i=98; subjectNames{i} = '098GS';      expDates{i} = '070123';  %
+i=99; subjectNames{i} = '099SP';      expDates{i} = '140123';  %
+i=100; subjectNames{i} = '100UK';     expDates{i} = '180123';  %
+i=101; subjectNames{i} = '101PB';     expDates{i} = '190123';  %
+i=102; subjectNames{i} = '102AS';     expDates{i} = '270123';  %
 
 end
