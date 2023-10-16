@@ -10,7 +10,8 @@ clear; close all
 tic
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%--------------------------------------%%%%%%%%%%%%%%%%%%%%%%%%
-sourcePath = 'N:\Projects\MeditationProjects\MeditationProject2\Codes\codesUnderDevelopment\UpdatedPrograms\badSubjectCodes';
+% sourcePath = 'N:\Projects\MeditationProjects\MeditationProject2\Codes\codesUnderDevelopment\UpdatedPrograms\badSubjectCodes';
+sourcePath = 'D:\Projects\MeditationProjects\MeditationProject2\CommonPrograms\badSubjectCodes';
 fileName   = 'MeditationProjectSubjectListAC.mat';
 load(fullfile(sourcePath,fileName),'allMatchedSubjectList');
 allSubjectListAC = allMatchedSubjectList(:);
