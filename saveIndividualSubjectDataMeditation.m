@@ -135,17 +135,20 @@ numTimeRange = length(timeRangeStrings);
 timeRangeS = {[-1 0],[0.25 1.25]}; % baseLine and stimulus timePeriods
 trialIndexesForSubSegments = {(1:120),(121:240),(241:360),(1:360)};
 
-psdVals = cell(1,numSegments);
+% psdVals = cell(1,numSegments);
 meanPSDVals = cell(1,numSegments);
-meanPSDValsAllProtocols = [];
+tfPower = cell(1,numSegments);
+% meanPSDValsAllProtocols = [];
 freqVals = cell(1,numSegments);
 numGoodElectrodesList = zeros(1,numSegments);
 numGoodTrialsAllProtocols = [];
+erpBL = [];
+erpST = [];
+erpCombined = [];
 segmentIndex=1; % default segment
 
 for p=1:numSegments
     for t=1:numTimeRange
-
         timeRange = timeRangeS{t};
         segmentName = segmentNameList{p};
         trialIndexes = trialIndexesForSubSegments{segmentIndex};
@@ -173,25 +176,46 @@ for p=1:numSegments
             disp(['for trials- ' num2str(trialIndexes(1)) ':' num2str(trialIndexes(end))]);
 
             % getting the mean data across trials
-            [meanPSDVals{p},freqVals,numGoodTrials,timeVals] = getData(subjectName,expDate,segmentName,folderSourceString,gridType,allElectrodeList,freqRange,timeRange,trialIndexes,logTransformFlag,biPolarFlag,removeIndividualUniqueBadTrials,allBadTrialsList{p},badTrialsList{p});
+            [meanPSDVals{p},freqVals,numGoodTrials,timeVals,tfPower,timeValsTF{t},freqValsTF,erp{p}] = getData(subjectName,expDate,segmentName,folderSourceString,gridType,allElectrodeList,freqRange,timeRange,trialIndexes,logTransformFlag,biPolarFlag,removeIndividualUniqueBadTrials,allBadTrialsList{p},badTrialsList{p});
 
-            % assigning the electrodes as NaN
+            % assigning the bad electrodes as NaN
             meanPSDVals{p}(badElecIndexThisProtocol,:) = NaN;
-            meanPSDValsAllProtocols(p,:,:) = meanPSDVals{p}';
-            numGoodTrialsAllProtocols(p,:) =numGoodTrials;
+            % saving Tfs and erp
+            tfPower(badElecIndexThisProtocol,:,:) = NaN;
+            erp{p}(badElecIndexThisProtocol,:)    = NaN;
+            % saving bad Elecs and trials
+            numGoodTrialsAllProtocols(p,:) = numGoodTrials;
+            numGoodElecThisProtocol        = length(setdiff(1:64,badElecIndexThisProtocol));
+            numGoodElecsAllProtocols(p,:)  = numGoodElecThisProtocol;
+            badElecListAllProtocols{p}     = badElecIndexThisProtocol;
         end
-
 
 
         % stores the power data in different variables for the 'BL' and 'ST' period
         if t==1
             blPowerVsFreqTopo = meanPSDVals{p};
-            powerValBL = meanPSDValsAllProtocols;
+            powerValBL(p,:,:) = blPowerVsFreqTopo;
+            tfPowerBL         = tfPower;
+            timeValsTFBL = timeValsTF{t};
+            erpTopoBl = erp{p};
+            erpBL(p,:,:) = erpTopoBl;
         else
             stPowerVsFreqTopo = meanPSDVals{p};
-            powerValST = meanPSDValsAllProtocols;
+            powerValST(p,:,:) = stPowerVsFreqTopo;
+            tfPowerST         = tfPower;
+            timeValsTFST = timeValsTF{t};
+            erpStTopoSt = erp{p};
+            erpST(p,:,:) = erpStTopoSt;
+            % Avg across both the condition: ST and BL
+            powerValCombinedTopo    = (blPowerVsFreqTopo+stPowerVsFreqTopo)/2;
+            powerValCombined(p,:,:) = powerValCombinedTopo;
+            tfPowerCombined         = (tfPowerBL+tfPowerST)/2;
+            erpCombinedTopo = (erpTopoBl+erpStTopoSt)/2;
+            erpCombined(p,:,:) = erpCombinedTopo;
         end
     end
+
+    % meanPower
 
     % conditions for M segments
     % changing 'medSegmentIndex' to select the particular trial-block
@@ -209,13 +233,13 @@ for p=1:numSegments
             mkdir(dirName);
         end
         fileNameToSave = fullfile(saveDataFolder,segmentNameList{p},saveFileNameProtocolWise);
-        save(fileNameToSave,'blPowerVsFreqTopo','stPowerVsFreqTopo','freqVals',"timeVals","numGoodTrials");
+        save(fileNameToSave,'blPowerVsFreqTopo','stPowerVsFreqTopo','freqVals',"timeVals","numGoodTrials","tfPowerBL","tfPowerST","numGoodElecThisProtocol","powerValCombinedTopo","tfPowerCombined","erpTopoBl","erpStTopoSt","erpCombinedTopo","timeValsTFBL","timeValsTFST");
     end
 end
 
 if saveDataFlag % save data for the current subject
     disp(['Saving the Power data for ' subjectName]);
-    save(saveFileName,'powerValBL','powerValST','freqVals',"timeVals",'numGoodTrialsAllProtocols');
+    save(saveFileName,'powerValBL','powerValST','powerValCombined','freqVals',"timeVals",'numGoodTrialsAllProtocols',"numGoodElecsAllProtocols","badElecListAllProtocols","erpBL","erpST","erpCombined");
 end
 end % the main function end
 
@@ -230,7 +254,7 @@ else
 end
 end
 
-function [meanPSDVals,freqVals,numGoodTrials,timeVals] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,freqRange,timeRange,trialIndexS,logTransformFlag,biPolarFlag,removeIndividualUniqueBadTrials,allBadTrialsListElecWise,badTrialsList)
+function [meanPSDVals,freqVals,numGoodTrials,timeVals,meanTfPower,timeValsTF,freqValsTF,erp] = getData(subjectName,expDate,protocolName,folderSourceString,gridType,electrodeList,freqRange,timeRange,trialIndexS,logTransformFlag,biPolarFlag,removeIndividualUniqueBadTrials,allBadTrialsListElecWise,badTrialsList)
 % get the mean PSD values for each individual subjects
 if biPolarFlag==1
     capType=  'actiCap64_UOL';
@@ -261,6 +285,10 @@ else
     params.Fs       = Fs;
     params.fpass    = freqRange;
     params.trialave = 0;
+    % Additional parameters to save TF
+    winSize         = 0.25;
+    winStep         = 0.025; % 4Hz resolution
+    movingwin = [winSize winStep];
 
     for i=1:numElectrodes
         if biPolarFlag==1
@@ -276,12 +304,17 @@ else
             e = load(fullfile(folderSegment,'LFP',['elec' num2str(electrodeList(i)) '.mat']));
         end
         [psdTMP(i,:,:),freqVals] = mtspectrumc(e.analogData(trialIndexS,goodTimePos)',params); %#ok<AGROW>
+        [tfPowerTMP(i,:,:,:),timeValsTF0,freqValsTF] = mtspecgramc(e.analogData(:,goodTimePos)',movingwin,params); % for all the trials
+        timeValsTF = timeValsTF0 + timeRange(1);
+        erpTMP(i,:,:) = e.analogData(trialIndexS,goodTimePos);
     end
 
     if logTransformFlag
-        psd = log10(squeeze(mean(psdTMP,1)));
+        psd     = log10(psdTMP);
+        tfPower = log10(tfPowerTMP);
     else
-        psd = psdTMP; % passing raw PSD to the main function
+        psd     = psdTMP; % passing raw PSD to the main function
+        tfPower = tfPowerTMP;
     end
 
     % removes bad trials, assigns Nans to the bad electrodes and
@@ -294,11 +327,16 @@ else
         else
             commonBadTrials = allBadTrialsListElecWise{i};
         end
-        meanPSDVals = mean(psd(:,:,setdiff(1:size(psd,3),commonBadTrials)),3); % dont remove the bad trials as it has already been removed.
+        meanPSDVals   = mean(psd(:,:,setdiff(1:size(psd,3),commonBadTrials)),3); % dont remove the bad trials as it has already been removed.
         numGoodTrials = length(setdiff(1:size(psd,3),badTrialsList));
+        meanTfPower   = mean(tfPower(:,:,:,setdiff(1:size(tfPower,4),commonBadTrials)),4);
     else
-        meanPSDVals = mean(psd(:,:,setdiff(1:size(psd,3),badTrialsList)),3);
+        meanPSDVals   = mean(psd(:,:,setdiff(1:size(psd,3),badTrialsList)),3);
         numGoodTrials = length(setdiff(1:size(psd,3),badTrialsList));
+        meanTfPower   = mean(tfPower(:,:,setdiff(1:size(tfPower,4),badTrialsList)),4);
+        erpTMP        = squeeze(mean(erpTMP(:,setdiff(1:size(erpTMP,2),badTrialsList),:),2));
+        meanErp       = mean(erpTMP,2);
+        erp           = erpTMP-meanErp;
     end
 end
 end
