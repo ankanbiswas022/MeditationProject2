@@ -233,13 +233,13 @@ for p=1:numSegments
             mkdir(dirName);
         end
         fileNameToSave = fullfile(saveDataFolder,segmentNameList{p},saveFileNameProtocolWise);
-        save(fileNameToSave,'blPowerVsFreqTopo','stPowerVsFreqTopo','freqVals',"timeVals","numGoodTrials","tfPowerBL","tfPowerST","numGoodElecThisProtocol","powerValCombinedTopo","tfPowerCombined","erpTopoBl","erpStTopoSt","erpCombinedTopo","timeValsTFBL","timeValsTFST");
+        save(fileNameToSave,'blPowerVsFreqTopo','stPowerVsFreqTopo','freqVals',"timeVals","numGoodTrials","tfPowerBL","tfPowerST","numGoodElecThisProtocol","powerValCombinedTopo","tfPowerCombined","erpTopoBl","erpStTopoSt","erpCombinedTopo","timeValsTFBL","timeValsTFST","freqValsTF");
     end
 end
 
 if saveDataFlag % save data for the current subject
     disp(['Saving the Power data for ' subjectName]);
-    save(saveFileName,'powerValBL','powerValST','powerValCombined','freqVals',"timeVals",'numGoodTrialsAllProtocols',"numGoodElecsAllProtocols","badElecListAllProtocols","erpBL","erpST","erpCombined");
+    save(saveFileName,'powerValBL','powerValST','powerValCombined','freqVals',"timeVals",'numGoodTrialsAllProtocols',"numGoodElecsAllProtocols","badElecListAllProtocols","erpBL","erpST","erpCombined","segmentNameList");
 end
 end % the main function end
 
@@ -330,10 +330,13 @@ else
         meanPSDVals   = mean(psd(:,:,setdiff(1:size(psd,3),commonBadTrials)),3); % dont remove the bad trials as it has already been removed.
         numGoodTrials = length(setdiff(1:size(psd,3),badTrialsList));
         meanTfPower   = mean(tfPower(:,:,:,setdiff(1:size(tfPower,4),commonBadTrials)),4);
+        erpTMP        = squeeze(mean(erpTMP(:,setdiff(1:size(erpTMP,2),commonBadTrials),:),2));
+        meanErp       = mean(erpTMP,2);
+        erp           = erpTMP-meanErp;
     else
         meanPSDVals   = mean(psd(:,:,setdiff(1:size(psd,3),badTrialsList)),3);
         numGoodTrials = length(setdiff(1:size(psd,3),badTrialsList));
-        meanTfPower   = mean(tfPower(:,:,setdiff(1:size(tfPower,4),badTrialsList)),4);
+        meanTfPower   = mean(tfPower(:,:,:,setdiff(1:size(tfPower,4),badTrialsList)),4);
         erpTMP        = squeeze(mean(erpTMP(:,setdiff(1:size(erpTMP,2),badTrialsList),:),2));
         meanErp       = mean(erpTMP,2);
         erp           = erpTMP-meanErp;
